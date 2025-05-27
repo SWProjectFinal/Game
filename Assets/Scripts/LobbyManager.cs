@@ -1,18 +1,36 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using Photon.Pun;
+using Photon.Realtime;
 
-public class LobbyManager : MonoBehaviour
+public class LobbyManager : MonoBehaviourPun
 {
-    // Start is called before the first frame update
+    [Header("UI References")]
+    public InputField nicknameInput;
+    public Button playButton;
+
     void Start()
     {
-        
+        // Play 버튼 클릭 이벤트 연결
+        playButton.onClick.AddListener(OnPlayButtonClicked);
     }
 
-    // Update is called once per frame
-    void Update()
+    void OnPlayButtonClicked()
     {
-        
+        string nickname = nicknameInput.text;
+
+        if (string.IsNullOrEmpty(nickname))
+        {
+            Debug.Log("닉네임을 입력해주세요!");
+            return;
+        }
+
+        // 닉네임 설정
+        PhotonNetwork.NickName = nickname;
+
+        // Photon 서버 연결
+        PhotonNetwork.ConnectUsingSettings();
+
+        Debug.Log("서버 연결 중...");
     }
 }
