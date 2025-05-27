@@ -34,7 +34,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
     private string selectedRoomName = "";
     private Dictionary<string, RoomInfo> roomListDictionary = new Dictionary<string, RoomInfo>();
-
+    private Coroutine autoRefreshCoroutine;
     void Start()
     {
         // 초기 UI 설정
@@ -226,13 +226,13 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         roomNameText.text = PhotonNetwork.CurrentRoom.Name;
         startGameButton.gameObject.SetActive(PhotonNetwork.IsMasterClient);
 
-        // 즉시 업데이트
         UpdatePlayerList();
-
-        // 0.5초 후 한번 더 업데이트 (동기화 보장)
-        StartCoroutine(DelayedUpdateAfterJoin());
-
         roomNameInput.text = "";
+
+        // 자동 새로고침 시작
+        if (autoRefreshCoroutine != null)
+            StopCoroutine(autoRefreshCoroutine);
+        autoRefreshCoroutine = StartCoroutine(AutoRefreshPlayerList());
     }
 
     // 방 입장 후 지연 업데이트
@@ -264,10 +264,30 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     public void OnLeftRoom()
     {
         Debug.Log("방에서 나감");
+
+        // 자동 새로고침 중지
+        if (autoRefreshCoroutine != null)
+        {
+            StopCoroutine(autoRefreshCoroutine);
+            autoRefreshCoroutine = null;
+        }
+
         roomPanel.SetActive(false);
         roomListPanel.SetActive(true);
     }
+    // 자동 새고침 코루틴
+    IEnumerator AutoRefreshPlayerList()
+    {
+        while (PhotonNetwork.InRoom)
+        {
+            yield return new WaitForSeconds(1f); // 1초마다
 
+            if (PhotonNetwork.InRoom && roomPanel.activeInHierarchy)
+            {
+                UpdatePlayerList();
+            }
+        }
+    }
     public void OnPlayerEnteredRoom(Player newPlayer)
     {
         Debug.Log("=== OnPlayerEnteredRoom 호출됨! ===");
