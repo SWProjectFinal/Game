@@ -84,7 +84,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
     void OnCreateRoomButtonClicked()
     {
-        roomListPanel.SetActive(false);
+        // roomListPanel.SetActive(false); // 이 줄 주석처리!
         createRoomPanel.SetActive(true);
     }
 
@@ -122,7 +122,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     void OnCancelCreateButtonClicked()
     {
         createRoomPanel.SetActive(false);
-        roomListPanel.SetActive(true);
+        // roomListPanel.SetActive(true); // 이 줄도 주석처리!
         roomNameInput.text = "";
     }
 
