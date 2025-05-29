@@ -55,6 +55,15 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     public Button readyButton;              // 준비 완료/취소 버튼 (일반 플레이어용)
     public Text gameStatusText;             // 게임 상태 메시지
 
+    [Header("💬 채팅 시스템")]
+    public GameObject chatPanel;            // 채팅 전체 패널
+    public ScrollRect chatScrollRect;       // 채팅 스크롤뷰
+    public Transform chatContent;           // 채팅 메시지들이 들어갈 Content
+    public InputField chatInputField;       // 채팅 입력창
+    public Button chatSendButton;           // 채팅 전송 버튼
+    public GameObject chatMessagePrefab;    // 채팅 메시지 프리펩
+    public Button[] quickMessageButtons;    // 빠른 메시지 버튼들 (선택사항)
+
     [Header("📢 Notification System")]
     public GameObject notificationPanel;
     public Text notificationText;
@@ -65,6 +74,8 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     public Color secondaryColor = new Color(0.25f, 0.41f, 0.88f); // #4169E1
     public Color successColor = new Color(0.2f, 0.8f, 0.2f); // #32CD32
     public Color dangerColor = new Color(0.86f, 0.08f, 0.24f); // #DC143C
+    public Color chatMasterColor = new Color(1f, 0.8f, 0.2f); // 방장 채팅 색상
+    public Color chatSystemColor = new Color(0.7f, 0.7f, 0.7f); // 시스템 메시지 색상
 
     // 기존 변수들
     private string selectedRoomName = "";
@@ -79,12 +90,29 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     private string attemptingRoomName = "";
     private Dictionary<string, bool> playerReadyStates = new Dictionary<string, bool>();
 
+    // 채팅 시스템 변수들
+    private List<GameObject> chatMessages = new List<GameObject>();
+    private float lastMessageTime = 0f;
+    private const float MESSAGE_COOLDOWN = 1f; // 도배 방지: 1초마다 1개 메시지
+    private const int MAX_MESSAGE_LENGTH = 100; // 최대 메시지 길이
+    private const int MAX_CHAT_MESSAGES = 50; // 최대 채팅 메시지 개수
+
+    // 빠른 메시지들
+    private string[] quickMessages = {
+        "준비됐어요! 👍",
+        "잠깐만요 ⏰",
+        "시작하자! 🚀",
+        "ㅋㅋㅋㅋ 😂",
+        "좋네요! 👌"
+    };
+
     void Start()
     {
         InitializeUI();
         SetupButtonEvents();
         ApplyUIColors();
         SetupAdvancedLobbySystem();
+        SetupChatSystem(); // 채팅 시스템 초기화
         PhotonNetwork.AddCallbackTarget(this);
     }
 
@@ -100,6 +128,9 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         if (createLoadingUI) createLoadingUI.SetActive(false);
         if (notificationPanel) notificationPanel.SetActive(false);
         if (passwordPromptPanel) passwordPromptPanel.SetActive(false);
+
+        // 채팅 패널 초기화
+        if (chatPanel) chatPanel.SetActive(false);
     }
 
     void ApplyUIColors()
@@ -115,6 +146,10 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
         ApplyButtonColors(leaveRoomButton, dangerColor);
         ApplyButtonColors(cancelCreateButton, dangerColor);
+
+        // 채팅 전송 버튼 색상
+        if (chatSendButton != null)
+            ApplyButtonColors(chatSendButton, primaryColor);
 
         if (notificationBackground != null)
             notificationBackground.color = secondaryColor;
@@ -221,6 +256,223 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
 
         Debug.Log("방 관리 시스템 초기화 완료");
+    }
+
+    // 💬 채팅 시스템 초기화
+    void SetupChatSystem()
+    {
+        // 채팅 전송 버튼 이벤트
+        if (chatSendButton)
+            chatSendButton.onClick.AddListener(OnChatSendButtonClicked);
+
+        // 채팅 입력창 Enter 키 이벤트
+        if (chatInputField)
+        {
+            chatInputField.onEndEdit.AddListener(delegate
+            {
+                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                {
+                    OnChatSendButtonClicked();
+                }
+            });
+        }
+
+        // 빠른 메시지 버튼들 설정
+        if (quickMessageButtons != null)
+        {
+            for (int i = 0; i < quickMessageButtons.Length && i < quickMessages.Length; i++)
+            {
+                if (quickMessageButtons[i] != null)
+                {
+                    int index = i; // 클로저 문제 해결
+                    quickMessageButtons[i].onClick.AddListener(() => SendQuickMessage(index));
+
+                    // 버튼 텍스트 설정
+                    Text btnText = quickMessageButtons[i].GetComponentInChildren<Text>();
+                    if (btnText != null)
+                        btnText.text = quickMessages[index];
+                }
+            }
+        }
+
+        Debug.Log("채팅 시스템 초기화 완료");
+    }
+
+    // 💬 채팅 메시지 전송 버튼 클릭
+    void OnChatSendButtonClicked()
+    {
+        Debug.Log("🔥 채팅 전송 버튼 클릭됨!");
+
+        if (!PhotonNetwork.InRoom)
+        {
+            Debug.LogError("❌ 방에 있지 않음!");
+            return;
+        }
+        Debug.Log("✅ 방에 있음!");
+
+        string message = chatInputField.text.Trim();
+        Debug.Log($"📝 입력된 메시지: '{message}'");
+
+        if (string.IsNullOrEmpty(message))
+        {
+            Debug.LogError("❌ 메시지가 비어있음!");
+            return;
+        }
+        Debug.Log("✅ 메시지가 유효함!");
+
+        // 메시지 길이 제한
+        if (message.Length > MAX_MESSAGE_LENGTH)
+        {
+            Debug.LogError($"❌ 메시지가 너무 김! ({message.Length}자)");
+            ShowNotification($"메시지는 {MAX_MESSAGE_LENGTH}자 이하로 입력해주세요!", NotificationType.Warning);
+            return;
+        }
+        Debug.Log("✅ 메시지 길이 OK!");
+
+        // 도배 방지
+        if (Time.time - lastMessageTime < MESSAGE_COOLDOWN)
+        {
+            Debug.LogError("❌ 도배 방지 작동!");
+            ShowNotification("너무 빠르게 메시지를 보내고 있습니다!", NotificationType.Warning);
+            return;
+        }
+        Debug.Log("✅ 도배 방지 통과!");
+
+        // 메시지 전송
+        Debug.Log("🚀 SendChatMessage 호출!");
+        SendChatMessage(message);
+
+        // 입력창 초기화
+        chatInputField.text = "";
+        chatInputField.Select();
+        chatInputField.ActivateInputField();
+
+        lastMessageTime = Time.time;
+        Debug.Log("✅ 채팅 전송 완료!");
+    }
+
+    // 💬 빠른 메시지 전송
+    void SendQuickMessage(int index)
+    {
+        if (!PhotonNetwork.InRoom) return;
+        if (index < 0 || index >= quickMessages.Length) return;
+
+        // 도배 방지
+        if (Time.time - lastMessageTime < MESSAGE_COOLDOWN)
+        {
+            ShowNotification("너무 빠르게 메시지를 보내고 있습니다!", NotificationType.Warning);
+            return;
+        }
+
+        SendChatMessage(quickMessages[index]);
+        lastMessageTime = Time.time;
+    }
+
+    // 💬 채팅 메시지 전송 (RPC)
+    void SendChatMessage(string message)
+    {
+        if (!PhotonNetwork.InRoom) return;
+
+        string playerName = PhotonNetwork.LocalPlayer.NickName;
+        bool isMaster = PhotonNetwork.IsMasterClient;
+
+        // RPC로 모든 플레이어에게 메시지 전송
+        photonView.RPC("ReceiveChatMessage", RpcTarget.All, playerName, message, isMaster);
+    }
+
+    // 💬 채팅 메시지 수신 (RPC)
+    [PunRPC]
+    void ReceiveChatMessage(string playerName, string message, bool isMaster)
+    {
+        DisplayChatMessage(playerName, message, isMaster, false);
+    }
+
+    // 💬 시스템 메시지 표시
+    void DisplaySystemMessage(string message)
+    {
+        DisplayChatMessage("시스템", message, false, true);
+    }
+
+    // 💬 채팅 메시지 UI에 표시
+    void DisplayChatMessage(string playerName, string message, bool isMaster, bool isSystem)
+    {
+        if (chatContent == null || chatMessagePrefab == null) return;
+
+        // 최대 메시지 개수 초과 시 오래된 메시지 제거
+        while (chatMessages.Count >= MAX_CHAT_MESSAGES)
+        {
+            GameObject oldMessage = chatMessages[0];
+            chatMessages.RemoveAt(0);
+            if (oldMessage != null)
+                Destroy(oldMessage);
+        }
+
+        // 새 메시지 생성
+        GameObject newMessage = Instantiate(chatMessagePrefab, chatContent);
+        chatMessages.Add(newMessage);
+
+        // 메시지 텍스트 설정
+        Text messageText = newMessage.GetComponentInChildren<Text>();
+        if (messageText != null)
+        {
+            string displayMessage;
+            Color textColor;
+
+            if (isSystem)
+            {
+                displayMessage = $"[시스템] {message}";
+                textColor = chatSystemColor;
+            }
+            else if (isMaster)
+            {
+                displayMessage = $"[방장] {playerName}: {message}";
+                textColor = chatMasterColor;
+            }
+            else
+            {
+                displayMessage = $"{playerName}: {message}";
+                textColor = Color.white;
+            }
+
+            messageText.text = displayMessage;
+            messageText.color = textColor;
+        }
+
+        // 시간 텍스트 설정 (선택사항)
+        Text[] allTexts = newMessage.GetComponentsInChildren<Text>();
+        if (allTexts.Length > 1)
+        {
+            Text timeText = allTexts[1];
+            timeText.text = System.DateTime.Now.ToString("HH:mm");
+            timeText.color = new Color(0.7f, 0.7f, 0.7f);
+        }
+
+        // 자동 스크롤
+        StartCoroutine(ScrollToBottom());
+    }
+
+    // 💬 채팅창 맨 아래로 스크롤
+    // 기존 ScrollToBottom 함수를 찾아서 이렇게 수정
+    IEnumerator ScrollToBottom()
+    {
+        yield return new WaitForEndOfFrame();
+
+        if (chatScrollRect != null)
+        {
+            chatScrollRect.verticalNormalizedPosition = 0f;
+            Debug.Log("✅ 스크롤 완료!");
+        }
+    }
+
+    // 💬 채팅창 초기화
+    void ClearChatMessages()
+    {
+        foreach (GameObject message in chatMessages)
+        {
+            if (message != null)
+                Destroy(message);
+        }
+        chatMessages.Clear();
     }
 
     // B2: 비공개 방 토글 변경
@@ -780,6 +1032,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         roomListPanel.SetActive(false);
         createRoomPanel.SetActive(false);
         roomPanel.SetActive(false);
+        if (chatPanel) chatPanel.SetActive(false);
     }
 
     public void OnRegionListReceived(RegionHandler regionHandler) { }
@@ -828,7 +1081,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         ShowNotification("방 생성에 실패했습니다: " + message, NotificationType.Error);
     }
 
-    // B2: 수정된 방 입장 함수 (비밀번호 체크 + 준비 상태 초기화 + 방장 자동 준비)
+    // B2: 수정된 방 입장 함수 (비밀번호 체크 + 준비 상태 초기화 + 방장 자동 준비 + 채팅 활성화)
     public void OnJoinedRoom()
     {
         Debug.Log("방 입장 성공!");
@@ -850,6 +1103,9 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         roomListPanel.SetActive(false);
         roomPanel.SetActive(true);
 
+        // 채팅 패널 활성화
+        if (chatPanel) chatPanel.SetActive(true);
+
         roomNameText.text = PhotonNetwork.CurrentRoom.Name;
 
         // 모든 플레이어 준비 상태 초기화
@@ -867,6 +1123,17 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 props["ready"] = true;
                 PhotonNetwork.LocalPlayer.SetCustomProperties(props);
             }
+        }
+
+        // 채팅 초기화 및 입장 메시지
+        ClearChatMessages();
+        DisplaySystemMessage($"{PhotonNetwork.LocalPlayer.NickName}님이 입장했습니다!");
+
+        // 채팅 입력창에 포커스
+        if (chatInputField)
+        {
+            chatInputField.Select();
+            chatInputField.ActivateInputField();
         }
 
         UpdatePlayerList();
@@ -919,6 +1186,10 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
         roomPanel.SetActive(false);
         roomListPanel.SetActive(true);
+
+        // 채팅 패널 비활성화
+        if (chatPanel) chatPanel.SetActive(false);
+        ClearChatMessages();
     }
 
     public void OnPlayerEnteredRoom(Player newPlayer)
@@ -926,6 +1197,9 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         Debug.Log($"=== 플레이어 입장: {newPlayer.NickName} ===");
         UpdatePlayerList();
         ShowNotification($"{newPlayer.NickName}님이 입장했습니다!", NotificationType.Success);
+
+        // 채팅에 입장 메시지 표시
+        DisplaySystemMessage($"{newPlayer.NickName}님이 입장했습니다!");
     }
 
     public void OnPlayerLeftRoom(Player otherPlayer)
@@ -933,6 +1207,9 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         Debug.Log($"=== 플레이어 퇴장: {otherPlayer.NickName} ===");
         UpdatePlayerList();
         ShowNotification($"{otherPlayer.NickName}님이 퇴장했습니다.", NotificationType.Info);
+
+        // 채팅에 퇴장 메시지 표시
+        DisplaySystemMessage($"{otherPlayer.NickName}님이 퇴장했습니다.");
     }
 
     // 방장 변경 시에도 새 방장을 자동 준비 상태로 만들기
@@ -952,6 +1229,9 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
 
         UpdatePlayerList();
+
+        // 채팅에 방장 변경 메시지
+        DisplaySystemMessage($"{newMasterClient.NickName}님이 새로운 방장이 되었습니다!");
 
         if (PhotonNetwork.IsMasterClient)
             ShowNotification("당신이 새로운 방장이 되었습니다! 게임을 시작할 수 있습니다.", NotificationType.Success);
@@ -977,6 +1257,10 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             {
                 string message = isReady ? $"{targetPlayer.NickName}님이 준비 완료했습니다!" : $"{targetPlayer.NickName}님이 준비를 취소했습니다.";
                 ShowNotification(message, isReady ? NotificationType.Success : NotificationType.Info);
+
+                // 채팅에도 표시
+                string chatMessage = isReady ? "준비 완료!" : "준비 취소";
+                DisplaySystemMessage($"{targetPlayer.NickName}님이 {chatMessage}");
             }
         }
     }
