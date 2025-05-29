@@ -55,13 +55,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     public Button readyButton;              // 준비 완료/취소 버튼 (일반 플레이어용)
     public Text gameStatusText;             // 게임 상태 메시지
 
-    [Header("👢 플레이어 추방 시스템")]
-    public Button kickButtonPrefab;         // 추방 버튼 프리팹
-    public GameObject kickConfirmPanel;     // 추방 확인 팝업
-    public Text kickConfirmText;            // 추방 확인 메시지
-    public Button confirmKickButton;        // 추방 확인 버튼
-    public Button cancelKickButton;         // 추방 취소 버튼
-
     [Header("📢 Notification System")]
     public GameObject notificationPanel;
     public Text notificationText;
@@ -86,15 +79,12 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     private string attemptingRoomName = "";
     private Dictionary<string, bool> playerReadyStates = new Dictionary<string, bool>();
 
-    // 추방 시스템 변수
-    private string targetKickPlayerName = "";
-
     void Start()
     {
         InitializeUI();
         SetupButtonEvents();
         ApplyUIColors();
-        SetupAdvancedLobbySystem(); // B2 기능 초기화
+        SetupAdvancedLobbySystem();
         PhotonNetwork.AddCallbackTarget(this);
     }
 
@@ -110,7 +100,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         if (createLoadingUI) createLoadingUI.SetActive(false);
         if (notificationPanel) notificationPanel.SetActive(false);
         if (passwordPromptPanel) passwordPromptPanel.SetActive(false);
-        if (kickConfirmPanel) kickConfirmPanel.SetActive(false);
     }
 
     void ApplyUIColors()
@@ -192,7 +181,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         SetupPrivateRoomSystem();
         SetupReadySystem();
         SetupRoomManagement();
-        SetupKickSystem(); // 추방 시스템 추가
     }
 
     void SetupPrivateRoomSystem()
@@ -235,15 +223,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         Debug.Log("방 관리 시스템 초기화 완료");
     }
 
-    // 추방 시스템 초기화
-    void SetupKickSystem()
-    {
-        if (confirmKickButton) confirmKickButton.onClick.AddListener(OnConfirmKickClicked);
-        if (cancelKickButton) cancelKickButton.onClick.AddListener(OnCancelKickClicked);
-
-        Debug.Log("플레이어 추방 시스템 초기화 완료");
-    }
-
     // B2: 비공개 방 토글 변경
     void OnPrivateRoomToggleChanged(bool isPrivate)
     {
@@ -263,15 +242,43 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         if (!PhotonNetwork.InRoom) return;
 
         string myNickname = PhotonNetwork.LocalPlayer.NickName;
-        bool currentReady = GetPlayerReadyState(myNickname);
+        bool currentReady = GetPlayerReadyStateFromProps(myNickname);
         bool newReady = !currentReady;
 
-        SetPlayerReadyState(myNickname, newReady);
+        Debug.Log($"🔥 준비 버튼 클릭: {myNickname}, 현재: {currentReady} → 새로운: {newReady}");
+
+        // 서버에 준비 상태 전송
+        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable();
+        props["ready"] = newReady;
+        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+
+        // 로컬 저장도 업데이트
+        playerReadyStates[myNickname] = newReady;
 
         string message = newReady ? "준비 완료!" : "준비 취소";
         ShowNotification(message, newReady ? NotificationType.Success : NotificationType.Info);
 
-        Debug.Log($"{myNickname} 준비 상태: {newReady}");
+        Debug.Log($"✅ {myNickname} 준비 상태 변경 완료: {newReady}");
+    }
+
+    bool GetPlayerReadyStateFromProps(string playerName)
+    {
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (player.NickName == playerName)
+            {
+                if (player.CustomProperties.ContainsKey("ready"))
+                {
+                    bool readyState = (bool)player.CustomProperties["ready"];
+                    Debug.Log($"플레이어 {playerName} 서버 준비 상태: {readyState}");
+                    return readyState;
+                }
+                break;
+            }
+        }
+
+        Debug.Log($"플레이어 {playerName} 준비 상태 없음 → false");
+        return false;
     }
 
     // B2: 플레이어 준비 상태 설정
@@ -287,22 +294,46 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         UpdateGameStartCondition();
     }
 
-    // B2: 플레이어 준비 상태 가져오기
+    // B2: 수정된 플레이어 준비 상태 가져오기 (방장 자동 준비)
     bool GetPlayerReadyState(string playerName)
     {
-        if (playerReadyStates.ContainsKey(playerName))
-            return playerReadyStates[playerName];
-
+        // 1차: 서버의 실제 속성에서 가져오기
         foreach (Player player in PhotonNetwork.PlayerList)
         {
             if (player.NickName == playerName)
             {
                 if (player.CustomProperties.ContainsKey("ready"))
-                    return (bool)player.CustomProperties["ready"];
+                {
+                    bool serverReady = (bool)player.CustomProperties["ready"];
+
+                    // 방장인 경우: 서버 상태가 false여도 true로 강제 (방장은 항상 준비)
+                    if (player.IsMasterClient && !serverReady)
+                    {
+                        Debug.Log($"방장 {playerName} 강제 준비 완료 처리");
+                        return true;
+                    }
+
+                    return serverReady;
+                }
+
+                // 방장이면서 속성이 없는 경우 → 자동 준비
+                if (player.IsMasterClient)
+                {
+                    Debug.Log($"방장 {playerName} 자동 준비 완료");
+                    return true;
+                }
+
                 break;
             }
         }
 
+        // 2차: 로컬 저장소에서 확인
+        if (playerReadyStates.ContainsKey(playerName))
+        {
+            return playerReadyStates[playerName];
+        }
+
+        Debug.Log($"플레이어 {playerName} 준비 상태 기본값: false");
         return false;
     }
 
@@ -311,18 +342,26 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     {
         if (!PhotonNetwork.InRoom) return false;
 
+        Debug.Log("=== 모든 플레이어 준비 상태 체크 ===");
+
         foreach (Player player in PhotonNetwork.PlayerList)
         {
-            if (!GetPlayerReadyState(player.NickName))
+            bool isReady = GetPlayerReadyState(player.NickName);
+            Debug.Log($"플레이어 {player.NickName}: {(isReady ? "✅준비완료" : "❌준비안됨")} (방장: {player.IsMasterClient})");
+
+            if (!isReady)
             {
+                Debug.Log($"❌ {player.NickName}이 준비되지 않아서 게임 시작 불가");
                 return false;
             }
         }
 
-        return PhotonNetwork.CurrentRoom.PlayerCount >= 2;
+        bool canStart = PhotonNetwork.CurrentRoom.PlayerCount >= 2;
+        Debug.Log($"최종 결과: {(canStart ? "✅모든 조건 만족" : "❌인원 부족")}");
+        return canStart;
     }
 
-    // B2: 게임 시작 조건 업데이트
+    // B2: 수정된 게임 시작 조건 업데이트 (방장 자동 준비 반영)
     void UpdateGameStartCondition()
     {
         if (!PhotonNetwork.InRoom) return;
@@ -384,12 +423,16 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         if (!PhotonNetwork.InRoom || readyButton == null) return;
 
         bool isMaster = PhotonNetwork.IsMasterClient;
-        bool isReady = GetPlayerReadyState(PhotonNetwork.LocalPlayer.NickName);
 
         readyButton.gameObject.SetActive(!isMaster);
 
         if (!isMaster)
         {
+            // 실제 서버 속성에서 상태 확인
+            bool isReady = GetPlayerReadyStateFromProps(PhotonNetwork.LocalPlayer.NickName);
+
+            Debug.Log($"준비 버튼 업데이트: {PhotonNetwork.LocalPlayer.NickName} → {(isReady ? "준비완료" : "준비안됨")}");
+
             Text buttonText = readyButton.GetComponentInChildren<Text>();
             if (buttonText != null)
             {
@@ -409,84 +452,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             }
             readyButton.colors = colors;
         }
-    }
-
-    // 플레이어 추방 시스템
-    void ShowKickConfirmation(string playerName)
-    {
-        if (!PhotonNetwork.IsMasterClient) return;
-
-        targetKickPlayerName = playerName;
-
-        if (kickConfirmPanel && kickConfirmText)
-        {
-            kickConfirmPanel.SetActive(true);
-            kickConfirmText.text = $"'{playerName}'님을 추방하시겠습니까?";
-        }
-
-        Debug.Log($"추방 확인 창 표시: {playerName}");
-    }
-
-    void OnConfirmKickClicked()
-    {
-        if (string.IsNullOrEmpty(targetKickPlayerName)) return;
-
-        // 추방 대상 플레이어 찾기
-        Player targetPlayer = null;
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            if (player.NickName == targetKickPlayerName)
-            {
-                targetPlayer = player;
-                break;
-            }
-        }
-
-        if (targetPlayer != null)
-        {
-            // RPC로 추방 알림 전송
-            photonView.RPC("NotifyPlayerKicked", targetPlayer, targetKickPlayerName);
-
-            // 잠시 후 실제 추방 (알림을 받을 시간을 줌)
-            StartCoroutine(KickPlayerAfterDelay(targetPlayer));
-
-            ShowNotification($"{targetKickPlayerName}님을 추방했습니다.", NotificationType.Warning);
-        }
-
-        if (kickConfirmPanel) kickConfirmPanel.SetActive(false);
-        targetKickPlayerName = "";
-    }
-
-    void OnCancelKickClicked()
-    {
-        if (kickConfirmPanel) kickConfirmPanel.SetActive(false);
-        targetKickPlayerName = "";
-    }
-
-    IEnumerator KickPlayerAfterDelay(Player targetPlayer)
-    {
-        yield return new WaitForSeconds(1f);
-
-        if (PhotonNetwork.IsMasterClient && targetPlayer != null)
-        {
-            // 방에서 추방
-            PhotonNetwork.CloseConnection(targetPlayer);
-        }
-    }
-
-    [PunRPC]
-    void NotifyPlayerKicked(string kickedPlayerName)
-    {
-        ShowNotification($"방장에 의해 추방되었습니다.", NotificationType.Error);
-
-        // 3초 후 자동으로 방 나가기
-        StartCoroutine(LeaveRoomAfterKick());
-    }
-
-    IEnumerator LeaveRoomAfterKick()
-    {
-        yield return new WaitForSeconds(3f);
-        PhotonNetwork.LeaveRoom();
     }
 
     #region Notification System
@@ -696,7 +661,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
         roomOptions.MaxPlayers = (byte)maxPlayers;
 
-        roomOptions.IsVisible = !isPrivate;
+        roomOptions.IsVisible = true;
         roomOptions.IsOpen = true;
 
         if (isPrivate)
@@ -863,7 +828,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         ShowNotification("방 생성에 실패했습니다: " + message, NotificationType.Error);
     }
 
-    // B2: 수정된 방 입장 함수 (비밀번호 체크 + 준비 상태 초기화)
+    // B2: 수정된 방 입장 함수 (비밀번호 체크 + 준비 상태 초기화 + 방장 자동 준비)
     public void OnJoinedRoom()
     {
         Debug.Log("방 입장 성공!");
@@ -887,10 +852,21 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
         roomNameText.text = PhotonNetwork.CurrentRoom.Name;
 
+        // 모든 플레이어 준비 상태 초기화
         playerReadyStates.Clear();
         foreach (Player player in PhotonNetwork.PlayerList)
         {
-            playerReadyStates[player.NickName] = false;
+            // 방장은 자동으로 준비 완료, 다른 플레이어는 준비 안됨
+            bool isReady = player.IsMasterClient;
+            playerReadyStates[player.NickName] = isReady;
+
+            // 자신이 방장이면 준비 상태를 서버에도 전송
+            if (player.IsMasterClient && PhotonNetwork.LocalPlayer == player)
+            {
+                ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable();
+                props["ready"] = true;
+                PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+            }
         }
 
         UpdatePlayerList();
@@ -959,9 +935,22 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         ShowNotification($"{otherPlayer.NickName}님이 퇴장했습니다.", NotificationType.Info);
     }
 
+    // 방장 변경 시에도 새 방장을 자동 준비 상태로 만들기
     public void OnMasterClientSwitched(Player newMasterClient)
     {
         Debug.Log($"=== 방장 변경: {newMasterClient.NickName} ===");
+
+        // 새 방장을 자동으로 준비 상태로 설정
+        playerReadyStates[newMasterClient.NickName] = true;
+
+        // 자신이 새 방장이 된 경우 서버에도 준비 상태 전송
+        if (PhotonNetwork.LocalPlayer == newMasterClient)
+        {
+            ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable();
+            props["ready"] = true;
+            PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+        }
+
         UpdatePlayerList();
 
         if (PhotonNetwork.IsMasterClient)
@@ -978,9 +967,17 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             bool isReady = (bool)changedProps["ready"];
             playerReadyStates[targetPlayer.NickName] = isReady;
 
-            UpdatePlayerList();
+            Debug.Log($"🔄 서버에서 준비 상태 업데이트: {targetPlayer.NickName} → {(isReady ? "✅준비완료" : "❌준비안됨")}");
 
-            Debug.Log($"{targetPlayer.NickName} 준비 상태 변경: {isReady}");
+            UpdatePlayerList();
+            UpdateReadyButton();
+
+            // 상태 변경 알림
+            if (targetPlayer != PhotonNetwork.LocalPlayer)
+            {
+                string message = isReady ? $"{targetPlayer.NickName}님이 준비 완료했습니다!" : $"{targetPlayer.NickName}님이 준비를 취소했습니다.";
+                ShowNotification(message, isReady ? NotificationType.Success : NotificationType.Info);
+            }
         }
     }
 
@@ -1170,7 +1167,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         Debug.Log($"공개 방 선택: {roomName}");
     }
 
-    // B2: 수정된 플레이어 목록 업데이트 (준비 상태 + 추방 버튼)
+    // 깔끔한 플레이어 목록 업데이트 (추방 버튼 제거)
     void UpdatePlayerList()
     {
         if (PhotonNetwork.CurrentRoom == null || !PhotonNetwork.InRoom || playerListContent == null)
@@ -1181,10 +1178,20 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             Destroy(child.gameObject);
         }
 
+        Debug.Log($"=== 플레이어 목록 업데이트 시작 ===");
+
         int playerIndex = 0;
         foreach (Player player in PhotonNetwork.PlayerList)
         {
+            Debug.Log($"플레이어 {playerIndex + 1}: {player.NickName} (방장: {player.IsMasterClient})");
+
             GameObject playerItem = Instantiate(playerItemPrefab, playerListContent);
+
+            if (playerItem == null)
+            {
+                Debug.LogError("❌ PlayerItem 생성 실패!");
+                continue;
+            }
 
             RectTransform rectTransform = playerItem.GetComponent<RectTransform>();
             if (rectTransform != null)
@@ -1192,8 +1199,21 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 rectTransform.anchoredPosition = new Vector2(0, -playerIndex * 60);
             }
 
-            Text[] texts = playerItem.GetComponentsInChildren<Text>();
-            if (texts.Length > 0)
+            // 플레이어 텍스트 설정
+            Text[] allTexts = playerItem.GetComponentsInChildren<Text>(true);
+            Text playerNameText = null;
+
+            // 플레이어 이름 표시용 Text 찾기
+            foreach (Text text in allTexts)
+            {
+                if (text.transform.parent == playerItem.transform)
+                {
+                    playerNameText = text;
+                    break;
+                }
+            }
+
+            if (playerNameText != null)
             {
                 bool isReady = GetPlayerReadyState(player.NickName);
                 string readyIcon = isReady ? "✅" : "❌";
@@ -1206,52 +1226,31 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 }
 
                 playerText += $" {readyIcon}";
-
-                texts[0].text = playerText;
+                playerNameText.text = playerText;
 
                 if (player.IsMasterClient)
                 {
                     Image bg = playerItem.GetComponent<Image>();
                     if (bg) bg.color = new Color(1f, 0.95f, 0.7f);
 
-                    texts[0].color = new Color(0.8f, 0.5f, 0f);
-                    texts[0].fontStyle = FontStyle.Bold;
+                    playerNameText.color = new Color(0.8f, 0.5f, 0f);
+                    playerNameText.fontStyle = FontStyle.Bold;
                 }
                 else
                 {
-                    texts[0].color = Color.black;
-                    texts[0].fontStyle = FontStyle.Normal;
+                    playerNameText.color = Color.black;
+                    playerNameText.fontStyle = FontStyle.Normal;
 
                     Image bg = playerItem.GetComponent<Image>();
                     if (bg) bg.color = Color.white;
                 }
             }
 
-            // 추방 버튼 추가 (방장만, 자신 제외)
-            if (PhotonNetwork.IsMasterClient && !player.IsMasterClient && kickButtonPrefab != null)
+            // 모든 버튼 비활성화 (추방 버튼 제거)
+            Button[] allButtons = playerItem.GetComponentsInChildren<Button>(true);
+            foreach (Button btn in allButtons)
             {
-                Button kickButton = Instantiate(kickButtonPrefab, playerItem.transform);
-
-                RectTransform kickRect = kickButton.GetComponent<RectTransform>();
-                if (kickRect != null)
-                {
-                    kickRect.anchorMin = new Vector2(1, 0.5f);
-                    kickRect.anchorMax = new Vector2(1, 0.5f);
-                    kickRect.anchoredPosition = new Vector2(-30, 0);
-                    kickRect.sizeDelta = new Vector2(50, 30);
-                }
-
-                Text kickText = kickButton.GetComponentInChildren<Text>();
-                if (kickText != null)
-                {
-                    kickText.text = "👢";
-                    kickText.fontSize = 18;
-                }
-
-                ApplyButtonColors(kickButton, dangerColor);
-
-                string playerName = player.NickName;
-                kickButton.onClick.AddListener(() => ShowKickConfirmation(playerName));
+                btn.gameObject.SetActive(false);
             }
 
             playerIndex++;
@@ -1263,7 +1262,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         UpdateReadyButton();
         UpdateGameStartCondition();
 
-        Debug.Log($"플레이어 목록 업데이트 완료: {PhotonNetwork.CurrentRoom.PlayerCount}명");
+        Debug.Log($"=== 플레이어 목록 업데이트 완료 ===");
     }
 
     IEnumerator AutoRefreshPlayerList()
