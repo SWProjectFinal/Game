@@ -1,5 +1,7 @@
 //무기 정보 저장용 클래스
 
+using UnityEngine;
+
 [System.Serializable]
 public class WeaponData
 {
