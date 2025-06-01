@@ -6,19 +6,36 @@ using System.Linq;
 public class WeaponManager : MonoBehaviourPunCallbacks
 {
     public static WeaponManager Instance;
+
+    [Header("무기 시스템")]
     public List<WeaponData> inventory = new List<WeaponData>();
     public int currentWeaponIndex = 0;
     public int maxSlots = 9;
+    public List<WeaponData> allWeapons = new List<WeaponData>();
+
+    [Header("발사 설정")]
+    public Transform firePoint; // 🔥 총알 발사 위치
+    public float angleSpeed = 60f; // ↑↓ 키 회전 속도
+    private float angle = 0f;
+
+    [Header("차징 설정")]
+    private bool isCharging = false;
+    private float chargePower = 0f;
+    public float minPower = 5f;
+    public float maxPower = 20f;
+    public float chargeSpeed = 20f;
 
     public override void OnConnectedToMaster()
     {
         Debug.Log("✅ Photon 서버 연결 성공!");
     }
 
-    public List<WeaponData> allWeapons = new List<WeaponData>();
-
     void Awake()
     {
+        // 싱글톤 패턴
+        if (Instance == null) Instance = this;
+
+        // 오프라인 모드 설정
         PhotonNetwork.Disconnect();
         PhotonNetwork.OfflineMode = true;
 
@@ -50,6 +67,17 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
     void Update()
     {
+        // 🔼🔽 방향키로 발사 각도 조절
+        float input = Input.GetKey(KeyCode.UpArrow) ? 1 :
+                      Input.GetKey(KeyCode.DownArrow) ? -1 : 0;
+
+        angle += input * angleSpeed * Time.deltaTime;
+        angle = Mathf.Clamp(angle, -80f, 80f);
+
+        if (firePoint != null)
+            firePoint.rotation = Quaternion.Euler(0, 0, angle);
+
+        // 숫자 키(1~9)로 무기 선택 or 즉시 사용 아이템 사용
         for (int i = 1; i <= inventory.Count; i++)
         {
             if (Input.GetKeyDown(i.ToString()))
@@ -67,11 +95,27 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             }
         }
 
+        // 스페이스바 누르면 차징 시작
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            Vector2 dir = Vector2.right;
-            float power = 10f;
-            FireWeapon(dir, power);
+            isCharging = true;
+            chargePower = minPower;
+        }
+
+        // 누르고 있으면 파워 증가
+        if (Input.GetKey(KeyCode.Space) && isCharging)
+        {
+            chargePower += chargeSpeed * Time.deltaTime;
+            chargePower = Mathf.Clamp(chargePower, minPower, maxPower);
+        }
+
+        // 떼면 발사!
+        if (Input.GetKeyUp(KeyCode.Space) && isCharging)
+        {
+            isCharging = false;
+
+            Vector2 dir = firePoint != null ? firePoint.right.normalized : Vector2.right;
+            FireWeapon(dir, chargePower);
         }
     }
 
@@ -80,7 +124,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         if (inventory.Count < maxSlots)
         {
             inventory.Add(weapon);
-            // TODO: UI 갱신
+            // TODO: 인벤토리 UI 갱신
         }
     }
 
@@ -92,7 +136,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         RPC_Fire((int)weapon.type, dir, power);
     }
 
-    // PhotonView 없이 바로 호출 가능 (오프라인 테스트용)
+    // PhotonView 없이 직접 호출 가능 (오프라인 테스트용)
     void RPC_Fire(int weaponTypeInt, Vector2 dir, float power)
     {
         Debug.Log("발사 시도됨");
@@ -105,8 +149,14 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        GameObject proj = Instantiate(weapon.projectilePrefab, transform.position, Quaternion.identity);
-        proj.GetComponent<Rigidbody2D>()?.AddForce(dir * power, ForceMode2D.Impulse);
+        Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
+
+        GameObject proj = Instantiate(weapon.projectilePrefab, spawnPos, Quaternion.identity);
+        Rigidbody2D rb = proj.GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            rb.AddForce(dir * power, ForceMode2D.Impulse);
+        }
     }
 
     void UseInstantItem(WeaponData item)
@@ -114,6 +164,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         if (item.type == WeaponType.Heal)
         {
             Debug.Log("체력 회복!");
+            // TODO: 실제 플레이어 체력 회복 구현
         }
     }
 
@@ -153,7 +204,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             damage = 80,
             isInstantUse = false,
             icon = null,
-            projectilePrefab = null
+            projectilePrefab = null // 나중에 연결
         });
 
         allWeapons.Add(new WeaponData
