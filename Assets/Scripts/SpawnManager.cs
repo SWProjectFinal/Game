@@ -1,39 +1,37 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class SpawnManager : MonoBehaviour
 {
     public GameObject playerPrefab;
-
-    public Vector2 spawnAreaMin = new Vector2(-10f, 0f);
-    public Vector2 spawnAreaMax = new Vector2(10f, 5f);
-
     public LayerMask groundLayer;
+    public Vector2 spawnAreaMin;
+    public Vector2 spawnAreaMax;
     public int maxAttempts = 20;
 
     void Start()
     {
-        SpawnPlayer();
+        SpawnPlayer(); // ê²Œì„ ì‹œì‘ ì‹œ ìë™ ì‹¤í–‰
     }
 
-    void SpawnPlayer()
+    public void SpawnPlayer()
     {
         for (int i = 0; i < maxAttempts; i++)
         {
-            float x = Random.Range(spawnAreaMin.x, spawnAreaMax.x);
-            float y = spawnAreaMax.y;
+            Vector2 randomPos = new Vector2(
+                Random.Range(spawnAreaMin.x, spawnAreaMax.x),
+                spawnAreaMax.y
+            );
 
-            // ¾Æ·¡·Î ·¹ÀÌÄ³½ºÆ® (ÁöÇüÀ» Ã£±â À§ÇÔ)
-            RaycastHit2D hit = Physics2D.Raycast(new Vector2(x, y), Vector2.down, 10f, groundLayer);
-
+            RaycastHit2D hit = Physics2D.Raycast(randomPos, Vector2.down, 20f, groundLayer);
             if (hit.collider != null)
             {
-                Vector2 spawnPos = hit.point + Vector2.up * 0.5f; // ¶¥ À§·Î ¾à°£ ¶ç¿ì±â
-                Instantiate(playerPrefab, spawnPos, Quaternion.identity);
-                Debug.Log("Ä³¸¯ÅÍ »ı¼ºµÊ: " + spawnPos);
+                Vector2 spawnPoint = hit.point + Vector2.up * 0.5f;
+                Instantiate(playerPrefab, spawnPoint, Quaternion.identity);
+                Debug.Log($"ğŸ‰ ìºë¦­í„° ìƒì„±ë¨: {spawnPoint}");
                 return;
             }
         }
 
-        Debug.LogWarning("½ºÆù À§Ä¡¸¦ Ã£Áö ¸øÇß½À´Ï´Ù!");
+        Debug.LogWarning("âš ï¸ ìºë¦­í„° ìŠ¤í° ì‹¤íŒ¨: ë•…ì´ ì—†ìŒ");
     }
 }
