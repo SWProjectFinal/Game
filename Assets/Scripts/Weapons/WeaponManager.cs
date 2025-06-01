@@ -49,21 +49,26 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         Debug.Log("🚀 WeaponManager Start");
 
         WeaponData basicGun = GetWeaponByType(WeaponType.BasicGun);
+        WeaponData blackhole = GetWeaponByType(WeaponType.Blackhole);  // 🔹 블랙홀도 불러오기
 
-        if (basicGun == null)
+        if (basicGun == null || blackhole == null)
         {
-            Debug.LogError("❌ 기본 무기를 못 찾았어!");
-        }
-        else
-        {
-            Debug.Log($"✅ 기본 무기 로딩 성공: {basicGun.displayName}");
-
-            if (basicGun.projectilePrefab == null)
-                Debug.LogError("❌ 하지만 총알 프리팹은 null임!");
+            Debug.LogError("❌ 무기를 못 찾았어!");
+            return;
         }
 
-        AddWeapon(basicGun);
+        Debug.Log($"✅ 기본 무기 로딩 성공: {basicGun.displayName}");
+        if (basicGun.projectilePrefab == null)
+            Debug.LogError("❌ 하지만 기본 무기 총알 프리팹은 null임!");
+
+        // 🔹 무기 인벤토리에 추가
+        AddWeapon(basicGun);     // Slot 1
+        AddWeapon(blackhole);    // Slot 2
+
+        // 🔹 UI 갱신
+        FindObjectOfType<InventoryManager>().UpdateInventoryUI();  // 여기에 꼭 있어야 아이콘 나옴!
     }
+
 
     void Update()
     {
@@ -177,23 +182,28 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
     void LoadWeapons()
     {
+        // 프리팹 로딩
         var bullet = Resources.Load<GameObject>("Prefabs/Bullet");
-        if (bullet == null)
-        {
-            Debug.LogError("❌ Bullet 프리팹 로딩 실패! 경로 확인 필요");
-        }
-        else
-        {
-            Debug.Log("✅ Bullet 프리팹 로딩 성공");
-        }
+        var blackholeProj = Resources.Load<GameObject>("Prefabs/BlackholeProjectile");
 
+        if (bullet == null) Debug.LogError("❌ Bullet 프리팹 로딩 실패!");
+        if (blackholeProj == null) Debug.LogError("❌ BlackholeProjectile 프리팹 로딩 실패!");
+
+        // 🔽 아이콘 로딩
+        var iconBasic = Resources.Load<Sprite>("Icons/03");
+        var iconBlackhole = Resources.Load<Sprite>("Icons/blackhole");
+
+        if (iconBasic == null) Debug.LogError("❌ 기본 무기 아이콘 로딩 실패!");
+        if (iconBlackhole == null) Debug.LogError("❌ 블랙홀 아이콘 로딩 실패!");
+
+        // 무기 등록
         allWeapons.Add(new WeaponData
         {
             type = WeaponType.BasicGun,
             displayName = "기본 무기",
             damage = 30,
             isInstantUse = false,
-            icon = null,
+            icon = iconBasic,  // ✅ 아이콘 등록
             projectilePrefab = bullet
         });
 
@@ -204,7 +214,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             damage = 80,
             isInstantUse = false,
             icon = null,
-            projectilePrefab = null // 나중에 연결
+            projectilePrefab = null
         });
 
         allWeapons.Add(new WeaponData
@@ -216,5 +226,17 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             icon = null,
             projectilePrefab = null
         });
+
+        allWeapons.Add(new WeaponData
+        {
+            type = WeaponType.Blackhole,
+            displayName = "블랙홀",
+            damage = 0,
+            isInstantUse = false,
+            icon = iconBlackhole,  // ✅ 아이콘 등록
+            projectilePrefab = blackholeProj
+        });
     }
+
+
 }
