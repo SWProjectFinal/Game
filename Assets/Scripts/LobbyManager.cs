@@ -77,6 +77,34 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     public Color chatMasterColor = new Color(1f, 0.8f, 0.2f); // 방장 채팅 색상
     public Color chatSystemColor = new Color(0.7f, 0.7f, 0.7f); // 시스템 메시지 색상
 
+    [Header("🎨 플레이어 색상 선택")]
+    public GameObject colorSelectionPanel;          // 색상 선택 패널
+    public Button[] colorButtons;                   // 색상 버튼들 (8개)
+    public Button openColorPanelButton;             // 색상 선택 패널 열기 버튼
+    public Button closeColorPanelButton;            // 색상 선택 패널 닫기 버튼
+    public Image myColorPreview;                    // 내 색상 미리보기
+    public Text myColorText;                        // 내 색상 텍스트
+
+    // 웜즈 스타일 색상 팔레트 (8색)
+    private Color[] playerColors = new Color[]
+    {
+    new Color(1f, 0.2f, 0.2f),      // 빨강 (Red)
+    new Color(0.2f, 0.4f, 1f),      // 파랑 (Blue) 
+    new Color(0.2f, 0.8f, 0.2f),    // 초록 (Green)
+    new Color(1f, 0.8f, 0.2f),      // 노랑 (Yellow)
+    new Color(0.8f, 0.2f, 0.8f),    // 보라 (Purple)
+    new Color(1f, 0.5f, 0.2f),      // 주황 (Orange)
+    new Color(0.2f, 0.8f, 0.8f),    // 하늘 (Cyan)
+    new Color(0.8f, 0.8f, 0.8f)     // 회색 (Gray)
+    };
+
+    private string[] colorNames = new string[]
+    {
+    "빨강", "파랑", "초록", "노랑", "보라", "주황", "하늘", "회색"
+    };
+
+    private int mySelectedColor = -1;               // 내가 선택한 색상 인덱스
+    private Dictionary<string, int> playerColorMap = new Dictionary<string, int>(); // 플레이어별 색상
     // 기존 변수들
     private string selectedRoomName = "";
     private Dictionary<string, RoomInfo> roomListDictionary = new Dictionary<string, RoomInfo>();
@@ -113,6 +141,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         ApplyUIColors();
         SetupAdvancedLobbySystem();
         SetupChatSystem(); // 채팅 시스템 초기화
+        SetupColorSystem();
         PhotonNetwork.AddCallbackTarget(this);
     }
 
@@ -1242,6 +1271,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     // B2: 플레이어 속성 업데이트 (준비 상태 동기화)
     public void OnPlayerPropertiesUpdate(Player targetPlayer, ExitGames.Client.Photon.Hashtable changedProps)
     {
+        // 준비 상태 변경 처리
         if (changedProps.ContainsKey("ready"))
         {
             bool isReady = (bool)changedProps["ready"];
@@ -1262,6 +1292,27 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 string chatMessage = isReady ? "준비 완료!" : "준비 취소";
                 DisplaySystemMessage($"{targetPlayer.NickName}님이 {chatMessage}");
             }
+        }
+
+        // 🔥 색상 변경 처리 (독립적인 블록으로 분리!)
+        if (changedProps.ContainsKey("playerColor"))
+        {
+            int colorIndex = (int)changedProps["playerColor"];
+            playerColorMap[targetPlayer.NickName] = colorIndex;
+
+            UpdatePlayerList();
+
+            // 색상 변경 알림 (다른 플레이어에게만)
+            if (targetPlayer != PhotonNetwork.LocalPlayer)
+            {
+                string colorName = (colorIndex >= 0 && colorIndex < colorNames.Length) ? colorNames[colorIndex] : "알 수 없음";
+                ShowNotification($"{targetPlayer.NickName}님이 {colorName} 색상을 선택했습니다!", NotificationType.Info);
+
+                // 채팅에도 표시
+                DisplaySystemMessage($"{targetPlayer.NickName}님이 {colorName} 색상을 선택했습니다!");
+            }
+
+            Debug.Log($"플레이어 {targetPlayer.NickName} 색상 변경: {colorIndex}");
         }
     }
 
@@ -1502,7 +1553,12 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 bool isReady = GetPlayerReadyState(player.NickName);
                 string readyIcon = isReady ? "✅" : "❌";
 
-                string playerText = $"플레이어: {player.NickName}";
+                int playerColorIndex = -1;
+                if (player.CustomProperties.ContainsKey("playerColor"))
+                    playerColorIndex = (int)player.CustomProperties["playerColor"];
+
+                string colorName = (playerColorIndex >= 0) ? colorNames[playerColorIndex] : "미선택";
+                string playerText = $"[{colorName}] {player.NickName}";
 
                 if (player.IsMasterClient)
                 {
@@ -1559,6 +1615,108 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 UpdatePlayerList();
             }
         }
+    }
+
+    // 색상 시스템 초기화
+    void SetupColorSystem()
+    {
+        if (colorSelectionPanel) colorSelectionPanel.SetActive(false);
+        if (openColorPanelButton) openColorPanelButton.onClick.AddListener(OpenColorSelection);
+        if (closeColorPanelButton) closeColorPanelButton.onClick.AddListener(CloseColorSelection);
+
+        for (int i = 0; i < colorButtons.Length && i < playerColors.Length; i++)
+        {
+            if (colorButtons[i] != null)
+            {
+                int colorIndex = i;
+                ColorBlock colors = colorButtons[i].colors;
+                colors.normalColor = playerColors[i];
+                colors.highlightedColor = LightenColor(playerColors[i], 0.2f);
+                colors.pressedColor = DarkenColor(playerColors[i], 0.2f);
+                colorButtons[i].colors = colors;
+                colorButtons[i].onClick.AddListener(() => SelectColor(colorIndex));
+
+                Text btnText = colorButtons[i].GetComponentInChildren<Text>();
+                if (btnText != null) btnText.text = colorNames[i];
+            }
+        }
+
+        if (myColorPreview) myColorPreview.color = Color.white;
+        if (myColorText) myColorText.text = "색상 선택";
+
+        Debug.Log("플레이어 색상 시스템 초기화 완료");
+    }
+
+    void OpenColorSelection()
+    {
+        if (!PhotonNetwork.InRoom)
+        {
+            ShowNotification("방에 입장한 후 색상을 선택할 수 있습니다!", NotificationType.Warning);
+            return;
+        }
+        if (colorSelectionPanel) colorSelectionPanel.SetActive(true);
+    }
+
+    void CloseColorSelection()
+    {
+        if (colorSelectionPanel) colorSelectionPanel.SetActive(false);
+    }
+
+    void SelectColor(int colorIndex)
+    {
+        if (!PhotonNetwork.InRoom) return;
+
+        if (IsColorTaken(colorIndex))
+        {
+            ShowNotification($"{colorNames[colorIndex]} 색상은 다른 플레이어가 사용 중입니다!", NotificationType.Warning);
+            return;
+        }
+
+        mySelectedColor = colorIndex;
+        playerColorMap[PhotonNetwork.LocalPlayer.NickName] = colorIndex;
+
+        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable();
+        props["playerColor"] = colorIndex;
+        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+
+        if (myColorPreview) myColorPreview.color = playerColors[mySelectedColor];
+        if (myColorText) myColorText.text = $"내 색상: {colorNames[mySelectedColor]}";
+
+        UpdatePlayerList();
+        ShowNotification($"{colorNames[colorIndex]} 색상을 선택했습니다!", NotificationType.Success);
+    }
+
+    bool IsColorTaken(int colorIndex)
+    {
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (player.CustomProperties.ContainsKey("playerColor"))
+            {
+                int playerColorIndex = (int)player.CustomProperties["playerColor"];
+                if (playerColorIndex == colorIndex && player != PhotonNetwork.LocalPlayer)
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    public int GetMyColorIndex()
+    {
+        return mySelectedColor;
+    }
+
+    public Color GetPlayerColorAsColor(string playerName)
+    {
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (player.NickName == playerName && player.CustomProperties.ContainsKey("playerColor"))
+            {
+                int colorIndex = (int)player.CustomProperties["playerColor"];
+                if (colorIndex >= 0 && colorIndex < playerColors.Length)
+                    return playerColors[colorIndex];
+            }
+        }
+        return Color.white;
     }
     #endregion
 
