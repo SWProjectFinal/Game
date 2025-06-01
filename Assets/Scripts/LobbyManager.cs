@@ -105,6 +105,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
     private int mySelectedColor = -1;               // 내가 선택한 색상 인덱스
     private Dictionary<string, int> playerColorMap = new Dictionary<string, int>(); // 플레이어별 색상
+
     // 기존 변수들
     private string selectedRoomName = "";
     private Dictionary<string, RoomInfo> roomListDictionary = new Dictionary<string, RoomInfo>();
@@ -135,18 +136,30 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     };
 
     void Start()
-    {
+    {// 게임씬에서는 LobbyManager 비활성화
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "GameScene")
+        {
+            gameObject.SetActive(false);
+            return;
+        }
         InitializeUI();
         SetupButtonEvents();
         ApplyUIColors();
         SetupAdvancedLobbySystem();
         SetupChatSystem(); // 채팅 시스템 초기화
         SetupColorSystem();
+
         PhotonNetwork.AddCallbackTarget(this);
     }
 
     void InitializeUI()
     {
+        // 게임씬에서 실행 중이면 로비 UI를 숨김
+        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "GameScene")
+        {
+            gameObject.SetActive(false);
+            return;
+        }
         loginPanel.SetActive(true);
         roomListPanel.SetActive(false);
         createRoomPanel.SetActive(false);
@@ -981,6 +994,11 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
 
         ShowNotification("게임을 시작합니다!", NotificationType.Success);
+        // 씬 전환 전 정리 작업
+        if (chatPanel) chatPanel.SetActive(false);
+
+        // 디버그 로그 추가
+        Debug.Log("🚀 GameScene으로 전환 시도!");
         PhotonNetwork.LoadLevel("GameScene");
     }
 
@@ -1293,7 +1311,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 DisplaySystemMessage($"{targetPlayer.NickName}님이 {chatMessage}");
             }
         }
-
         // 🔥 색상 변경 처리 (독립적인 블록으로 분리!)
         if (changedProps.ContainsKey("playerColor"))
         {
@@ -1552,13 +1569,12 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             {
                 bool isReady = GetPlayerReadyState(player.NickName);
                 string readyIcon = isReady ? "✅" : "❌";
-
                 int playerColorIndex = -1;
                 if (player.CustomProperties.ContainsKey("playerColor"))
                     playerColorIndex = (int)player.CustomProperties["playerColor"];
-
                 string colorName = (playerColorIndex >= 0) ? colorNames[playerColorIndex] : "미선택";
                 string playerText = $"[{colorName}] {player.NickName}";
+
 
                 if (player.IsMasterClient)
                 {
@@ -1618,6 +1634,35 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     }
 
     // 색상 시스템 초기화
+    // 게임 시작 시 색상 미선택 플레이어에게 자동 배정
+    void AssignRandomColors()
+    {
+        List<int> availableColors = new List<int> { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+        // 이미 선택된 색상 제거
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (player.CustomProperties.ContainsKey("playerColor"))
+            {
+                int usedColor = (int)player.CustomProperties["playerColor"];
+                availableColors.Remove(usedColor);
+            }
+        }
+
+        // 미선택 플레이어에게 배정
+        int colorIndex = 0;
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (!player.CustomProperties.ContainsKey("playerColor") && colorIndex < availableColors.Count)
+            {
+                if (player == PhotonNetwork.LocalPlayer)
+                {
+                    SelectColor(availableColors[colorIndex]);
+                }
+                colorIndex++;
+            }
+        }
+    }
     void SetupColorSystem()
     {
         if (colorSelectionPanel) colorSelectionPanel.SetActive(false);
