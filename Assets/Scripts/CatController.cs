@@ -29,16 +29,23 @@ public class CatController : MonoBehaviour
     private bool isDead = false;
     private bool isGrounded;
 
+    // ===== 턴제 연결을 위한 추가 변수 =====
+    private bool canMove = true;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+
+        // ===== 턴제 이벤트 구독 =====
+        TurnManager.OnPlayerMovementChanged += OnMovementStateChanged;
     }
 
     void Update()
     {
-        if (isDead) return;
+        // ===== 턴제 조건 추가 =====
+        if (isDead || !canMove) return;
 
         moveInput = (int)Input.GetAxisRaw("Horizontal");
         lookInput = Input.GetAxisRaw("Vertical");
@@ -68,7 +75,8 @@ public class CatController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (isDead) return;
+        // ===== 턴제 조건 추가 =====
+        if (isDead || !canMove) return;
 
         isGrounded = IsGrounded();
 
@@ -89,6 +97,25 @@ public class CatController : MonoBehaviour
         }
 
         rb.velocity = velocity;
+    }
+
+    // ===== 턴제 연결을 위한 추가 함수 =====
+    void OnMovementStateChanged(bool canMoveState)
+    {
+        canMove = canMoveState;
+
+        // 움직임이 차단될 때 입력 초기화
+        if (!canMove)
+        {
+            moveInput = 0;
+            lookInput = 0;
+
+            // 애니메이션도 정지
+            if (animator != null)
+                animator.SetBool("isWalking", false);
+        }
+
+        Debug.Log($"CatController: 움직임 상태 변경 - {canMove}");
     }
 
     bool IsGrounded()
@@ -114,5 +141,11 @@ public class CatController : MonoBehaviour
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
         }
+    }
+
+    // ===== 이벤트 구독 해제 =====
+    void OnDestroy()
+    {
+        TurnManager.OnPlayerMovementChanged -= OnMovementStateChanged;
     }
 }
