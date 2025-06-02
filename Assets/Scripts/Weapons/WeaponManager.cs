@@ -69,6 +69,9 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
         // 🔹 UI 갱신
         FindObjectOfType<InventoryManager>().UpdateInventoryUI();  // 여기에 꼭 있어야 아이콘 나옴!
+        
+        // ✅ 기본 무기 강조 테두리 표시 (1번)
+        InventoryManager.Instance.SetSelectedSlot(0);
     }
 
 
