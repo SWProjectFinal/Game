@@ -50,6 +50,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
         WeaponData basicGun = GetWeaponByType(WeaponType.BasicGun);
         WeaponData blackhole = GetWeaponByType(WeaponType.Blackhole);  // 🔹 블랙홀도 불러오기
+        WeaponData rpg = GetWeaponByType(WeaponType.RPG);
 
         if (basicGun == null || blackhole == null)
         {
@@ -64,6 +65,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         // 🔹 무기 인벤토리에 추가
         AddWeapon(basicGun);     // Slot 1
         AddWeapon(blackhole);    // Slot 2
+        AddWeapon(rpg);
 
         // 🔹 UI 갱신
         FindObjectOfType<InventoryManager>().UpdateInventoryUI();  // 여기에 꼭 있어야 아이콘 나옴!
@@ -186,16 +188,20 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         // 프리팹 로딩
         var bullet = Resources.Load<GameObject>("Prefabs/Bullet");
         var blackholeProj = Resources.Load<GameObject>("Prefabs/BlackholeProjectile");
+        var rpgProj = Resources.Load<GameObject>("Prefabs/RPGProjectile");
 
         if (bullet == null) Debug.LogError("❌ Bullet 프리팹 로딩 실패!");
         if (blackholeProj == null) Debug.LogError("❌ BlackholeProjectile 프리팹 로딩 실패!");
+        if (rpgProj == null) Debug.LogError("❌ RPGProjectile 프리팹 로딩 실패!");
 
         // 🔽 아이콘 로딩
         var iconBasic = Resources.Load<Sprite>("Icons/03");
         var iconBlackhole = Resources.Load<Sprite>("Icons/machine_gun_blue");
+        var iconRPG = Resources.Load<Sprite>("Icons/rocket _launcher_blue");
 
         if (iconBasic == null) Debug.LogError("❌ 기본 무기 아이콘 로딩 실패!");
         if (iconBlackhole == null) Debug.LogError("❌ 블랙홀 아이콘 로딩 실패!");
+        if (iconRPG == null) Debug.LogError("❌ RPG 아이콘 로딩 실패!");
 
         // 무기 등록
         allWeapons.Add(new WeaponData
@@ -214,8 +220,8 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             displayName = "RPG",
             damage = 80,
             isInstantUse = false,
-            icon = null,
-            projectilePrefab = null
+            icon = iconRPG,
+            projectilePrefab = rpgProj
         });
 
         allWeapons.Add(new WeaponData
