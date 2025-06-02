@@ -162,12 +162,18 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     };
 
     void Start()
-    {// 게임씬에서는 LobbyManager 비활성화
-        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "GameScene")
+    {
+        PhotonNetwork.AutomaticallySyncScene = true;  // 씬 자동 동기화
+        PhotonNetwork.EnableCloseConnection = true;   // 연결 안정화
+
+        // 🔥 여기도 TestGameScene 추가 (둘 다 체크하도록)
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (currentScene == "GameScene" || currentScene == "TestGameScene")
         {
             gameObject.SetActive(false);
             return;
         }
+
         InitializeUI();
         SetupButtonEvents();
         ApplyUIColors();
@@ -180,12 +186,14 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
     void InitializeUI()
     {
-        // 게임씬에서 실행 중이면 로비 UI를 숨김
-        if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "GameScene")
+        // 🔥 여기도 TestGameScene 추가
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+        if (currentScene == "GameScene" || currentScene == "TestGameScene")
         {
             gameObject.SetActive(false);
             return;
         }
+
         loginPanel.SetActive(true);
         roomListPanel.SetActive(false);
         createRoomPanel.SetActive(false);
@@ -555,6 +563,13 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     // 🤖 전체 플레이어 수 (실제 플레이어 + 봇)
     int GetTotalPlayerCount()
     {
+        // 🔒 이 안전한 버전으로 교체!
+        if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null)
+        {
+            Debug.LogWarning("⚠️ 방에 있지 않거나 CurrentRoom이 null입니다.");
+            return botPlayers.Count;
+        }
+
         return PhotonNetwork.CurrentRoom.PlayerCount + botPlayers.Count;
     }
 
@@ -596,6 +611,18 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     [PunRPC]
     void SyncBotAdded(string botName, int colorIndex)
     {
+        Debug.Log($"🤖 봇 추가 RPC 수신: {botName} (색상: {colorIndex})");
+
+        // 중복 체크
+        foreach (BotPlayer existingBot in botPlayers)
+        {
+            if (existingBot.botName == botName)
+            {
+                Debug.LogWarning($"🤖 이미 존재하는 봇: {botName}, 스킵!");
+                return;
+            }
+        }
+
         BotPlayer newBot = new BotPlayer(botName, colorIndex);
         botPlayers.Add(newBot);
 
@@ -603,7 +630,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         UpdateBotUI();
 
         DisplaySystemMessage($"{botName} 봇이 참가했습니다!");
-        Debug.Log($"🤖 다른 플레이어가 봇 추가: {botName}");
+        Debug.Log($"🤖 봇 추가 완료: {botName}, 현재 봇 수: {botPlayers.Count}");
     }
 
     // 🤖 봇 제거 동기화
@@ -1481,15 +1508,39 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
 
         ShowNotification("게임을 시작합니다!", NotificationType.Success);
+
         // 씬 전환 전 정리 작업
         if (chatPanel) chatPanel.SetActive(false);
 
         // 🤖 봇 정보를 GameScene에 전달하기 위해 PlayerPrefs에 저장
         SaveBotDataForGameScene();
 
-        // 디버그 로그 추가
-        Debug.Log("🚀 GameScene으로 전환 시도!");
-        PhotonNetwork.LoadLevel("GameScene");
+        // 🔥 더 안전한 씬 전환 방법
+        Debug.Log("🚀 TestGameScene으로 전환 시도!");
+
+        // Unity Editor에서와 Build에서 모두 작동하도록 개선
+        if (PhotonNetwork.IsMasterClient)
+        {
+            // 방법 1: Photon 씬 동기화 사용
+            PhotonNetwork.LoadLevel("TestGameScene");
+
+            // 방법 2: 백업용 - 0.5초 후 강제 전환 (Editor용)
+            StartCoroutine(FallbackSceneTransition());
+        }
+    }
+
+    IEnumerator FallbackSceneTransition()
+    {
+        yield return new WaitForSeconds(0.5f);
+
+        // PhotonNetwork.LoadLevel이 실패했을 경우를 대비
+        string currentScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+
+        if (currentScene != "TestGameScene")
+        {
+            Debug.LogWarning("⚠️ PhotonNetwork.LoadLevel 실패 감지, UnityEngine.SceneManager 사용");
+            UnityEngine.SceneManagement.SceneManager.LoadScene("TestGameScene");
+        }
     }
 
     // 🤖 봇 데이터를 GameScene에 전달하기 위한 저장
@@ -1629,6 +1680,14 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             }
         }
 
+        // 🤖 자신이 방장이 아니라면 기존 봇 정보 요청
+        if (!PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log("🤖 방장이 아니므로 기존 봇 정보 요청!");
+            // 방장에게 현재 봇 정보 요청하는 RPC 전송
+            photonView.RPC("RequestBotInfo", RpcTarget.MasterClient);
+        }
+
         // 채팅 초기화 및 입장 메시지
         ClearChatMessages();
         DisplaySystemMessage($"{PhotonNetwork.LocalPlayer.NickName}님이 입장했습니다!");
@@ -1657,6 +1716,26 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         if (autoRefreshCoroutine != null)
             StopCoroutine(autoRefreshCoroutine);
         autoRefreshCoroutine = StartCoroutine(AutoRefreshPlayerList());
+    }
+
+    // 🤖 봇 정보 요청 RPC (일반 플레이어 → 방장)
+    [PunRPC]
+    void RequestBotInfo()
+    {
+        // 방장만 응답
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        Debug.Log("🤖 일반 플레이어가 봇 정보 요청! 현재 봇 정보 전송");
+
+        // 요청한 플레이어에게만 현재 봇 정보 전송
+        if (botPlayers.Count > 0)
+        {
+            foreach (BotPlayer bot in botPlayers)
+            {
+                photonView.RPC("SyncBotAdded", RpcTarget.Others, bot.botName, bot.colorIndex);
+                Debug.Log($"🤖 요청에 의해 {bot.botName} 정보 재전송");
+            }
+        }
     }
 
     public void OnJoinRoomFailed(short returnCode, string message)
@@ -1704,6 +1783,20 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     public void OnPlayerEnteredRoom(Player newPlayer)
     {
         Debug.Log($"=== 플레이어 입장: {newPlayer.NickName} ===");
+
+        // 🤖 방장이라면 새로 입장한 플레이어에게 현재 봇 정보 전송
+        if (PhotonNetwork.IsMasterClient && botPlayers.Count > 0)
+        {
+            Debug.Log($"🤖 방장이 {newPlayer.NickName}에게 기존 봇 {botPlayers.Count}개 정보 전송!");
+
+            // 각 봇의 정보를 새 플레이어에게만 전송
+            foreach (BotPlayer bot in botPlayers)
+            {
+                photonView.RPC("SyncBotAdded", newPlayer, bot.botName, bot.colorIndex);
+                Debug.Log($"🤖 {bot.botName} 정보 전송 완료 → {newPlayer.NickName}");
+            }
+        }
+
         UpdatePlayerList();
         ShowNotification($"{newPlayer.NickName}님이 입장했습니다!", NotificationType.Success);
 
@@ -1725,6 +1818,18 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     public void OnMasterClientSwitched(Player newMasterClient)
     {
         Debug.Log($"=== 방장 변경: {newMasterClient.NickName} ===");
+
+        // 🤖 새 방장이 자신이라면, 모든 플레이어에게 현재 봇 상태 재전송
+        if (PhotonNetwork.LocalPlayer == newMasterClient && botPlayers.Count > 0)
+        {
+            Debug.Log($"🤖 새 방장이 되어 모든 플레이어에게 봇 정보 재전송!");
+
+            // 모든 다른 플레이어에게 현재 봇 정보 전송
+            foreach (BotPlayer bot in botPlayers)
+            {
+                photonView.RPC("SyncBotAdded", RpcTarget.Others, bot.botName, bot.colorIndex);
+            }
+        }
 
         // 새 방장을 자동으로 준비 상태로 설정
         playerReadyStates[newMasterClient.NickName] = true;
