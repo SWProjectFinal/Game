@@ -115,7 +115,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     // 🤖 AI 봇 시스템 변수들
     private List<BotPlayer> botPlayers = new List<BotPlayer>();
     private int botCounter = 0;
-    private const int MAX_BOTS = 2; // 최대 봇 개수
+    private const int MAX_BOTS = 3; // 최대 봇 개수
 
     [System.Serializable]
     public class BotPlayer
