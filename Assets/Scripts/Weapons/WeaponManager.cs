@@ -95,6 +95,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
                 else
                 {
                     currentWeaponIndex = i - 1;
+                    InventoryManager.Instance.SetSelectedSlot(currentWeaponIndex);
                 }
                 break;
             }
@@ -191,7 +192,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
         // 🔽 아이콘 로딩
         var iconBasic = Resources.Load<Sprite>("Icons/03");
-        var iconBlackhole = Resources.Load<Sprite>("Icons/blackhole");
+        var iconBlackhole = Resources.Load<Sprite>("Icons/machine_gun_blue");
 
         if (iconBasic == null) Debug.LogError("❌ 기본 무기 아이콘 로딩 실패!");
         if (iconBlackhole == null) Debug.LogError("❌ 블랙홀 아이콘 로딩 실패!");

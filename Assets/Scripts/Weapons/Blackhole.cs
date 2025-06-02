@@ -2,36 +2,37 @@ using UnityEngine;
 
 public class Blackhole : MonoBehaviour
 {
-    public float pullRadius = 5f;
-    public float pullForce = 10f;
+    [Header("이펙트 설정")]
+    public GameObject suctionEffectPrefab;
+
+    [Header("물리 설정")]
+    public float pullForce = 15f;
     public float duration = 3f;
 
-    private float timer;
-
-    void Start()
+    private void Start()
     {
-        timer = duration;
-    }
+        // 일정 시간 후 자동 파괴
+        Destroy(gameObject, duration);
 
-    void Update()
-    {
-        timer -= Time.deltaTime;
-        if (timer <= 0f)
+        // 흡입 이펙트 소환
+        if (suctionEffectPrefab != null)
         {
-            Destroy(gameObject);
+            Instantiate(suctionEffectPrefab, transform.position, Quaternion.identity, transform);
         }
     }
 
-    void FixedUpdate()
+    private void OnTriggerStay2D(Collider2D other)
     {
-        Collider2D[] targets = Physics2D.OverlapCircleAll(transform.position, pullRadius);
-        foreach (Collider2D col in targets)
+        Rigidbody2D rb = other.attachedRigidbody;
+
+        if (rb != null && rb.gameObject != this.gameObject)
         {
-            if (col.attachedRigidbody != null && col.gameObject != this.gameObject)
-            {
-                Vector2 dir = (transform.position - col.transform.position).normalized;
-                col.attachedRigidbody.AddForce(dir * pullForce);
-            }
+            Vector2 direction = (transform.position - rb.transform.position).normalized;
+            float distance = Vector2.Distance(transform.position, rb.transform.position);
+
+            // 가까울수록 세게 당기도록
+            float force = pullForce / Mathf.Max(distance, 0.5f); // 너무 가까운 건 제한
+            rb.AddForce(direction * force * Time.deltaTime, ForceMode2D.Impulse);
         }
     }
 }
