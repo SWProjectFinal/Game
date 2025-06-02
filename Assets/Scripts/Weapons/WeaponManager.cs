@@ -27,6 +27,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
     [Header("Scriptable 무기")]
     public WeaponData_SO basicGunSO;
+    public WeaponData_SO blackholeSO;
 
     public override void OnConnectedToMaster()
     {
@@ -41,35 +42,44 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         PhotonNetwork.OfflineMode = true;
 
         Debug.Log("🔥 WeaponManager Awake");
-
-        LoadWeapons();
     }
 
     void Start()
     {
         Debug.Log("🚀 WeaponManager Start");
 
-        WeaponData basicGun = GetWeaponByType(WeaponType.BasicGun);
-        WeaponData blackhole = GetWeaponByType(WeaponType.Blackhole);
-        WeaponData rpg = GetWeaponByType(WeaponType.RPG);
+        inventory.Clear();
 
-        if (basicGun == null || blackhole == null)
+        if (basicGunSO != null)
         {
-            Debug.LogError("❌ 무기를 못 찾았어!");
-            return;
+            inventory.Add(new WeaponData
+            {
+                type = WeaponType.BasicGun,
+                displayName = basicGunSO.weaponName,
+                isInstantUse = basicGunSO.isInstantUse,
+                icon = basicGunSO.icon,
+                projectilePrefab = basicGunSO.projectilePrefab,
+                damage = basicGunSO.damage
+            });
         }
 
-        Debug.Log($"✅ 기본 무기 로딩 성공: {basicGun.displayName}");
-        if (basicGun.projectilePrefab == null)
-            Debug.LogError("❌ 하지만 기본 무기 총알 프리팹은 null임!");
-
-        AddWeapon(basicGun);     // Slot 1
-        AddWeapon(blackhole);    // Slot 2
-        AddWeapon(rpg);          // Slot 3
+        if (blackholeSO != null)
+        {
+            inventory.Add(new WeaponData
+            {
+                type = WeaponType.Blackhole,
+                displayName = blackholeSO.weaponName,
+                isInstantUse = blackholeSO.isInstantUse,
+                icon = blackholeSO.icon,
+                projectilePrefab = blackholeSO.projectilePrefab,
+                damage = blackholeSO.damage
+            });
+        }
 
         FindObjectOfType<InventoryManager>().UpdateInventoryUI();
         InventoryManager.Instance.SetSelectedSlot(0);
     }
+
 
     void Update()
     {
@@ -138,34 +148,40 @@ public class WeaponManager : MonoBehaviourPunCallbacks
     void RPC_Fire(int weaponTypeInt, Vector2 dir, float power)
     {
         Debug.Log("발사 시도됨");
-        Debug.Log("🔫 BasicGun 발사 준비됨");
-        Debug.Log("🚀 프리팹 인스턴스 생성 완료");
-        Debug.Log("✅ weaponData 주입!");
 
         WeaponType type = (WeaponType)weaponTypeInt;
 
-        // ✅ ScriptableObject 기반 발사 (BasicGun만 적용 중)
+        // ✅ BasicGun (ScriptableObject)
         if (type == WeaponType.BasicGun && basicGunSO != null)
         {
             Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
-
             GameObject proj = Instantiate(basicGunSO.projectilePrefab, spawnPos, firePoint.rotation);
 
             var standardProj = proj.GetComponent<StandardProjectile>();
             if (standardProj != null)
             {
                 standardProj.weaponData = basicGunSO;
-                standardProj.power = power; // ✅ 여기!
+                standardProj.power = power;
             }
-            else
-            {
-                Debug.LogWarning("⚠ StandardProjectile 스크립트가 projectile에 안 붙어 있음!");
-            }
-
             return;
         }
 
-        // ✅ 기존 방식 유지
+        // ✅ Blackhole (ScriptableObject)
+        if (type == WeaponType.Blackhole && blackholeSO != null)
+        {
+            Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
+            GameObject proj = Instantiate(blackholeSO.projectilePrefab, spawnPos, firePoint.rotation);
+
+            var blackholeProj = proj.GetComponent<BlackholeProjectile_SO>();
+            if (blackholeProj != null)
+            {
+                blackholeProj.weaponData = blackholeSO;
+                blackholeProj.power = power;
+            }
+            return;
+        }
+
+        // ✅ 기존 방식 (WeaponData 기반)
         WeaponData weapon = GetWeaponByType(type);
 
         if (weapon.projectilePrefab == null)
@@ -198,54 +214,5 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         return w;
     }
 
-    void LoadWeapons()
-    {
-        var bullet = Resources.Load<GameObject>("Prefabs/Bullet");
-        var blackholeProj = Resources.Load<GameObject>("Prefabs/BlackholeProjectile");
-        var rpgProj = Resources.Load<GameObject>("Prefabs/RPGProjectile");
-
-        var iconBasic = Resources.Load<Sprite>("Icons/03");
-        var iconBlackhole = Resources.Load<Sprite>("Icons/machine_gun_blue");
-        var iconRPG = Resources.Load<Sprite>("Icons/rocket _launcher_blue");
-
-        allWeapons.Add(new WeaponData
-        {
-            type = WeaponType.BasicGun,
-            displayName = "기본 무기",
-            damage = 30,
-            isInstantUse = false,
-            icon = iconBasic,
-            projectilePrefab = bullet
-        });
-
-        allWeapons.Add(new WeaponData
-        {
-            type = WeaponType.RPG,
-            displayName = "RPG",
-            damage = 80,
-            isInstantUse = false,
-            icon = iconRPG,
-            projectilePrefab = rpgProj
-        });
-
-        allWeapons.Add(new WeaponData
-        {
-            type = WeaponType.Heal,
-            displayName = "회복 아이템",
-            damage = 0,
-            isInstantUse = true,
-            icon = null,
-            projectilePrefab = null
-        });
-
-        allWeapons.Add(new WeaponData
-        {
-            type = WeaponType.Blackhole,
-            displayName = "블랙홀",
-            damage = 0,
-            isInstantUse = false,
-            icon = iconBlackhole,
-            projectilePrefab = blackholeProj
-        });
-    }
+    
 }

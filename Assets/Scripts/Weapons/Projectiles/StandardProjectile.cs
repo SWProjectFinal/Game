@@ -19,10 +19,12 @@ public class StandardProjectile : MonoBehaviour
         {
             rb.gravityScale = weaponData.useGravity ? 1f : 0f;
 
-            // ✅ 차징된 파워 값을 곱해서 발사!
-            rb.velocity = transform.right.normalized * weaponData.bulletSpeed * power;
+            // ✅ 최소 파워 보정
+            float finalPower = Mathf.Max(0.1f, power);
+            rb.velocity = transform.right.normalized * weaponData.bulletSpeed * finalPower;
         }
     }
+
 
     void FixedUpdate()
     {
