@@ -85,6 +85,12 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     public Image myColorPreview;                    // 내 색상 미리보기
     public Text myColorText;                        // 내 색상 텍스트
 
+    [Header("🤖 AI 봇 시스템")]
+    public Button addBotButton;          // 봇 추가 버튼
+    public Button removeBotButton;       // 봇 제거 버튼
+    public Text botCountText;            // 봇 개수 표시 텍스트
+    public GameObject botIndicatorIcon;   // 봇 표시 아이콘 (선택사항)
+
     // 웜즈 스타일 색상 팔레트 (8색)
     private Color[] playerColors = new Color[]
     {
@@ -105,6 +111,26 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
     private int mySelectedColor = -1;               // 내가 선택한 색상 인덱스
     private Dictionary<string, int> playerColorMap = new Dictionary<string, int>(); // 플레이어별 색상
+
+    // 🤖 AI 봇 시스템 변수들
+    private List<BotPlayer> botPlayers = new List<BotPlayer>();
+    private int botCounter = 0;
+    private const int MAX_BOTS = 3; // 최대 봇 개수
+
+    [System.Serializable]
+    public class BotPlayer
+    {
+        public string botName;
+        public int colorIndex;
+        public bool isReady;
+
+        public BotPlayer(string name, int color)
+        {
+            botName = name;
+            colorIndex = color;
+            isReady = true; // 봇은 항상 준비 완료
+        }
+    }
 
     // 기존 변수들
     private string selectedRoomName = "";
@@ -193,6 +219,12 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         if (chatSendButton != null)
             ApplyButtonColors(chatSendButton, primaryColor);
 
+        // 🤖 봇 버튼 색상
+        if (addBotButton != null)
+            ApplyButtonColors(addBotButton, successColor);
+        if (removeBotButton != null)
+            ApplyButtonColors(removeBotButton, dangerColor);
+
         if (notificationBackground != null)
             notificationBackground.color = secondaryColor;
 
@@ -258,6 +290,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         SetupPrivateRoomSystem();
         SetupReadySystem();
         SetupRoomManagement();
+        SetupBotSystem(); // 🤖 봇 시스템 추가!
     }
 
     void SetupPrivateRoomSystem()
@@ -300,6 +333,25 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         Debug.Log("방 관리 시스템 초기화 완료");
     }
 
+    // 🤖 봇 시스템 초기화
+    void SetupBotSystem()
+    {
+        if (addBotButton)
+        {
+            addBotButton.onClick.AddListener(OnAddBotButtonClicked);
+            addBotButton.gameObject.SetActive(false); // 처음에는 숨김
+        }
+
+        if (removeBotButton)
+        {
+            removeBotButton.onClick.AddListener(OnRemoveBotButtonClicked);
+            removeBotButton.gameObject.SetActive(false); // 처음에는 숨김
+        }
+
+        UpdateBotUI();
+        Debug.Log("🤖 AI 봇 시스템 초기화 완료");
+    }
+
     // 💬 채팅 시스템 초기화
     void SetupChatSystem()
     {
@@ -339,6 +391,244 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
 
         Debug.Log("채팅 시스템 초기화 완료");
     }
+
+    void SetupColorSystem()
+    {
+        if (colorSelectionPanel) colorSelectionPanel.SetActive(false);
+        if (openColorPanelButton) openColorPanelButton.onClick.AddListener(OpenColorSelection);
+        if (closeColorPanelButton) closeColorPanelButton.onClick.AddListener(CloseColorSelection);
+
+        for (int i = 0; i < colorButtons.Length && i < playerColors.Length; i++)
+        {
+            if (colorButtons[i] != null)
+            {
+                int colorIndex = i;
+                ColorBlock colors = colorButtons[i].colors;
+                colors.normalColor = playerColors[i];
+                colors.highlightedColor = LightenColor(playerColors[i], 0.2f);
+                colors.pressedColor = DarkenColor(playerColors[i], 0.2f);
+                colorButtons[i].colors = colors;
+                colorButtons[i].onClick.AddListener(() => SelectColor(colorIndex));
+
+                Text btnText = colorButtons[i].GetComponentInChildren<Text>();
+                if (btnText != null) btnText.text = colorNames[i];
+            }
+        }
+
+        if (myColorPreview) myColorPreview.color = Color.white;
+        if (myColorText) myColorText.text = "색상 선택";
+
+        Debug.Log("플레이어 색상 시스템 초기화 완료");
+    }
+
+    #region 🤖 Bot System Methods
+
+    // 🤖 봇 추가 버튼 클릭
+    void OnAddBotButtonClicked()
+    {
+        if (!PhotonNetwork.InRoom)
+        {
+            ShowNotification("방에 입장 후 봇을 추가할 수 있습니다!", NotificationType.Warning);
+            return;
+        }
+
+        if (!PhotonNetwork.IsMasterClient)
+        {
+            ShowNotification("방장만 봇을 추가할 수 있습니다!", NotificationType.Warning);
+            return;
+        }
+
+        if (GetTotalPlayerCount() >= 4)
+        {
+            ShowNotification("최대 4명까지만 참가할 수 있습니다!", NotificationType.Warning);
+            return;
+        }
+
+        if (botPlayers.Count >= MAX_BOTS)
+        {
+            ShowNotification($"최대 {MAX_BOTS}개의 봇만 추가할 수 있습니다!", NotificationType.Warning);
+            return;
+        }
+
+        AddBot();
+    }
+
+    // 🤖 봇 제거 버튼 클릭
+    void OnRemoveBotButtonClicked()
+    {
+        if (!PhotonNetwork.IsMasterClient)
+        {
+            ShowNotification("방장만 봇을 제거할 수 있습니다!", NotificationType.Warning);
+            return;
+        }
+
+        if (botPlayers.Count == 0)
+        {
+            ShowNotification("제거할 봇이 없습니다!", NotificationType.Warning);
+            return;
+        }
+
+        RemoveBot();
+    }
+
+    // 🤖 봇 추가
+    void AddBot()
+    {
+        botCounter++;
+        string botName = $"Bot{botCounter}";
+
+        // 사용 가능한 색상 찾기
+        int availableColor = GetAvailableColorForBot();
+        if (availableColor == -1)
+        {
+            ShowNotification("사용 가능한 색상이 없습니다!", NotificationType.Warning);
+            return;
+        }
+
+        BotPlayer newBot = new BotPlayer(botName, availableColor);
+        botPlayers.Add(newBot);
+
+        // 네트워크로 봇 정보 전송
+        photonView.RPC("SyncBotAdded", RpcTarget.Others, botName, availableColor);
+
+        UpdatePlayerList();
+        UpdateBotUI();
+
+        ShowNotification($"{botName} 봇이 추가되었습니다!", NotificationType.Success);
+        DisplaySystemMessage($"{botName} 봇이 참가했습니다!");
+
+        Debug.Log($"🤖 봇 추가 완료: {botName} (색상: {availableColor})");
+    }
+
+    // 🤖 봇 제거
+    void RemoveBot()
+    {
+        if (botPlayers.Count == 0) return;
+
+        BotPlayer removedBot = botPlayers[botPlayers.Count - 1];
+        botPlayers.RemoveAt(botPlayers.Count - 1);
+
+        // 네트워크로 봇 제거 정보 전송
+        photonView.RPC("SyncBotRemoved", RpcTarget.Others, removedBot.botName);
+
+        UpdatePlayerList();
+        UpdateBotUI();
+
+        ShowNotification($"{removedBot.botName} 봇이 제거되었습니다!", NotificationType.Info);
+        DisplaySystemMessage($"{removedBot.botName} 봇이 퇴장했습니다!");
+
+        Debug.Log($"🤖 봇 제거 완료: {removedBot.botName}");
+    }
+
+    // 🤖 봇용 사용 가능한 색상 찾기
+    int GetAvailableColorForBot()
+    {
+        List<int> usedColors = new List<int>();
+
+        // 플레이어들이 사용 중인 색상
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (player.CustomProperties.ContainsKey("playerColor"))
+            {
+                usedColors.Add((int)player.CustomProperties["playerColor"]);
+            }
+        }
+
+        // 봇들이 사용 중인 색상
+        foreach (BotPlayer bot in botPlayers)
+        {
+            usedColors.Add(bot.colorIndex);
+        }
+
+        // 사용 가능한 색상 찾기
+        for (int i = 0; i < playerColors.Length; i++)
+        {
+            if (!usedColors.Contains(i))
+            {
+                return i;
+            }
+        }
+
+        return -1; // 사용 가능한 색상 없음
+    }
+
+    // 🤖 전체 플레이어 수 (실제 플레이어 + 봇)
+    int GetTotalPlayerCount()
+    {
+        return PhotonNetwork.CurrentRoom.PlayerCount + botPlayers.Count;
+    }
+
+    // 🤖 봇 UI 업데이트
+    void UpdateBotUI()
+    {
+        // 방장일 때만 봇 버튼 표시
+        bool showBotButtons = PhotonNetwork.InRoom && PhotonNetwork.IsMasterClient;
+
+        if (addBotButton)
+            addBotButton.gameObject.SetActive(showBotButtons);
+        if (removeBotButton)
+            removeBotButton.gameObject.SetActive(showBotButtons);
+
+        // 봇 개수 텍스트 업데이트
+        if (botCountText)
+        {
+            botCountText.text = $"AI 봇: {botPlayers.Count}/{MAX_BOTS}";
+        }
+
+        // 버튼 활성화/비활성화
+        if (addBotButton)
+            addBotButton.interactable = (GetTotalPlayerCount() < 4 && botPlayers.Count < MAX_BOTS);
+        if (removeBotButton)
+            removeBotButton.interactable = (botPlayers.Count > 0);
+    }
+
+    // 🤖 봇 정보 가져오기 (GameScene에서 사용)
+    public List<BotPlayer> GetBotPlayers()
+    {
+        return new List<BotPlayer>(botPlayers); // 복사본 반환
+    }
+
+    #endregion
+
+    #region RPC Methods
+
+    // 🤖 봇 추가 동기화
+    [PunRPC]
+    void SyncBotAdded(string botName, int colorIndex)
+    {
+        BotPlayer newBot = new BotPlayer(botName, colorIndex);
+        botPlayers.Add(newBot);
+
+        UpdatePlayerList();
+        UpdateBotUI();
+
+        DisplaySystemMessage($"{botName} 봇이 참가했습니다!");
+        Debug.Log($"🤖 다른 플레이어가 봇 추가: {botName}");
+    }
+
+    // 🤖 봇 제거 동기화
+    [PunRPC]
+    void SyncBotRemoved(string botName)
+    {
+        botPlayers.RemoveAll(bot => bot.botName == botName);
+
+        UpdatePlayerList();
+        UpdateBotUI();
+
+        DisplaySystemMessage($"{botName} 봇이 퇴장했습니다!");
+        Debug.Log($"🤖 다른 플레이어가 봇 제거: {botName}");
+    }
+
+    // 💬 채팅 메시지 수신 (RPC)
+    [PunRPC]
+    void ReceiveChatMessage(string playerName, string message, bool isMaster)
+    {
+        DisplayChatMessage(playerName, message, isMaster, false);
+    }
+
+    #endregion
+
+    #region Chat System Methods
 
     // 💬 채팅 메시지 전송 버튼 클릭
     void OnChatSendButtonClicked()
@@ -422,13 +712,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         photonView.RPC("ReceiveChatMessage", RpcTarget.All, playerName, message, isMaster);
     }
 
-    // 💬 채팅 메시지 수신 (RPC)
-    [PunRPC]
-    void ReceiveChatMessage(string playerName, string message, bool isMaster)
-    {
-        DisplayChatMessage(playerName, message, isMaster, false);
-    }
-
     // 💬 시스템 메시지 표시
     void DisplaySystemMessage(string message)
     {
@@ -494,7 +777,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
     }
 
     // 💬 채팅창 맨 아래로 스크롤
-    // 기존 ScrollToBottom 함수를 찾아서 이렇게 수정
     IEnumerator ScrollToBottom()
     {
         yield return new WaitForEndOfFrame();
@@ -517,18 +799,9 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         chatMessages.Clear();
     }
 
-    // B2: 비공개 방 토글 변경
-    void OnPrivateRoomToggleChanged(bool isPrivate)
-    {
-        if (passwordInputGroup)
-        {
-            passwordInputGroup.SetActive(isPrivate);
-            if (isPrivate && roomPasswordInput)
-                roomPasswordInput.Select();
-            else if (roomPasswordInput)
-                roomPasswordInput.text = "";
-        }
-    }
+    #endregion
+
+    #region Ready System Methods
 
     // B2: 준비 상태 버튼 클릭
     void OnReadyButtonClicked()
@@ -631,13 +904,14 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         return false;
     }
 
-    // B2: 모든 플레이어 준비 상태 체크
+    // 🤖 봇 포함 모든 플레이어 준비 상태 체크
     bool AreAllPlayersReady()
     {
         if (!PhotonNetwork.InRoom) return false;
 
-        Debug.Log("=== 모든 플레이어 준비 상태 체크 ===");
+        Debug.Log("=== 모든 플레이어 준비 상태 체크 (봇 포함) ===");
 
+        // 실제 플레이어들 체크
         foreach (Player player in PhotonNetwork.PlayerList)
         {
             bool isReady = GetPlayerReadyState(player.NickName);
@@ -650,18 +924,25 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             }
         }
 
-        bool canStart = PhotonNetwork.CurrentRoom.PlayerCount >= 2;
-        Debug.Log($"최종 결과: {(canStart ? "✅모든 조건 만족" : "❌인원 부족")}");
+        // 🤖 봇들은 항상 준비 완료 상태 (별도 체크 불필요)
+        Debug.Log($"🤖 봇 {botPlayers.Count}개 모두 준비 완료");
+
+        // 🤖 총 인원수 체크 (실제 플레이어 + 봇)
+        int totalPlayers = PhotonNetwork.CurrentRoom.PlayerCount + botPlayers.Count;
+        bool canStart = totalPlayers >= 2;
+
+        Debug.Log($"최종 결과: {(canStart ? "✅모든 조건 만족" : "❌인원 부족")} (총 {totalPlayers}명)");
         return canStart;
     }
 
-    // B2: 수정된 게임 시작 조건 업데이트 (방장 자동 준비 반영)
+    // 🤖 봇 포함 게임 시작 조건 업데이트
     void UpdateGameStartCondition()
     {
         if (!PhotonNetwork.InRoom) return;
 
         bool allReady = AreAllPlayersReady();
         int currentPlayers = PhotonNetwork.CurrentRoom.PlayerCount;
+        int totalPlayers = currentPlayers + botPlayers.Count; // 🤖 봇 포함
         int readyPlayers = 0;
 
         foreach (Player player in PhotonNetwork.PlayerList)
@@ -670,10 +951,13 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 readyPlayers++;
         }
 
+        // 🤖 봇은 항상 준비 완료
+        readyPlayers += botPlayers.Count;
+
         string statusMessage;
-        if (currentPlayers < 2)
+        if (totalPlayers < 2) // 🤖 봇 포함 총 인원
         {
-            statusMessage = $"최소 2명 필요 (현재 {currentPlayers}명)";
+            statusMessage = $"최소 2명 필요 (현재 {totalPlayers}명)";
         }
         else if (allReady)
         {
@@ -681,7 +965,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
         else
         {
-            statusMessage = $"{readyPlayers}/{currentPlayers}명 준비 완료 (대기중)";
+            statusMessage = $"{readyPlayers}/{totalPlayers}명 준비 완료 (대기중)";
         }
 
         if (gameStatusText)
@@ -747,6 +1031,209 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             readyButton.colors = colors;
         }
     }
+
+    #endregion
+
+    #region Private Room System Methods
+
+    // B2: 비공개 방 토글 변경
+    void OnPrivateRoomToggleChanged(bool isPrivate)
+    {
+        if (passwordInputGroup)
+        {
+            passwordInputGroup.SetActive(isPrivate);
+            if (isPrivate && roomPasswordInput)
+                roomPasswordInput.Select();
+            else if (roomPasswordInput)
+                roomPasswordInput.text = "";
+        }
+    }
+
+    void ShowPasswordPrompt(string roomName)
+    {
+        attemptingRoomName = roomName;
+
+        if (passwordPromptPanel)
+        {
+            passwordPromptPanel.SetActive(true);
+
+            if (joinPasswordInput)
+            {
+                joinPasswordInput.text = "";
+                joinPasswordInput.Select();
+            }
+        }
+
+        Debug.Log($"비공개 방 비밀번호 입력 요청: {roomName}");
+    }
+
+    void OnConfirmPasswordClicked()
+    {
+        string inputPassword = joinPasswordInput.text.Trim();
+
+        if (string.IsNullOrEmpty(inputPassword))
+        {
+            ShowNotification("비밀번호를 입력해주세요!", NotificationType.Error);
+            return;
+        }
+
+        selectedRoomPassword = inputPassword;
+        selectedRoomName = attemptingRoomName;
+
+        if (passwordPromptPanel)
+            passwordPromptPanel.SetActive(false);
+
+        OnJoinRoomButtonClicked();
+    }
+
+    void OnCancelPasswordClicked()
+    {
+        if (passwordPromptPanel)
+            passwordPromptPanel.SetActive(false);
+
+        attemptingRoomName = "";
+        selectedRoomPassword = "";
+    }
+
+    #endregion
+
+    #region Color System Methods
+
+    void OpenColorSelection()
+    {
+        if (!PhotonNetwork.InRoom)
+        {
+            ShowNotification("방에 입장한 후 색상을 선택할 수 있습니다!", NotificationType.Warning);
+            return;
+        }
+        if (colorSelectionPanel) colorSelectionPanel.SetActive(true);
+    }
+
+    void CloseColorSelection()
+    {
+        if (colorSelectionPanel) colorSelectionPanel.SetActive(false);
+    }
+
+    void SelectColor(int colorIndex)
+    {
+        if (!PhotonNetwork.InRoom) return;
+
+        if (IsColorTaken(colorIndex))
+        {
+            ShowNotification($"{colorNames[colorIndex]} 색상은 다른 플레이어가 사용 중입니다!", NotificationType.Warning);
+            return;
+        }
+
+        mySelectedColor = colorIndex;
+        playerColorMap[PhotonNetwork.LocalPlayer.NickName] = colorIndex;
+
+        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable();
+        props["playerColor"] = colorIndex;
+        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+
+        if (myColorPreview) myColorPreview.color = playerColors[mySelectedColor];
+        if (myColorText) myColorText.text = $"내 색상: {colorNames[mySelectedColor]}";
+
+        UpdatePlayerList();
+        ShowNotification($"{colorNames[colorIndex]} 색상을 선택했습니다!", NotificationType.Success);
+    }
+
+    // 🤖 봇 색상도 포함해서 색상 중복 체크
+    bool IsColorTaken(int colorIndex)
+    {
+        // 실제 플레이어들이 사용 중인 색상 체크
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (player.CustomProperties.ContainsKey("playerColor"))
+            {
+                int playerColorIndex = (int)player.CustomProperties["playerColor"];
+                if (playerColorIndex == colorIndex && player != PhotonNetwork.LocalPlayer)
+                    return true;
+            }
+        }
+
+        // 🤖 봇들이 사용 중인 색상 체크
+        foreach (BotPlayer bot in botPlayers)
+        {
+            if (bot.colorIndex == colorIndex)
+            {
+                Debug.Log($"🤖 색상 {colorIndex}는 봇 {bot.botName}이 사용 중");
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // 게임 시작 시 색상 미선택 플레이어에게 자동 배정
+    void AssignRandomColors()
+    {
+        List<int> availableColors = new List<int> { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+        // 이미 선택된 색상 제거 (플레이어 + 봇)
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (player.CustomProperties.ContainsKey("playerColor"))
+            {
+                int usedColor = (int)player.CustomProperties["playerColor"];
+                availableColors.Remove(usedColor);
+            }
+        }
+
+        foreach (BotPlayer bot in botPlayers)
+        {
+            availableColors.Remove(bot.colorIndex);
+        }
+
+        // 미선택 플레이어에게 배정
+        int colorIndex = 0;
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (!player.CustomProperties.ContainsKey("playerColor") && colorIndex < availableColors.Count)
+            {
+                if (player == PhotonNetwork.LocalPlayer)
+                {
+                    SelectColor(availableColors[colorIndex]);
+                }
+                colorIndex++;
+            }
+        }
+    }
+
+    public int GetMyColorIndex()
+    {
+        return mySelectedColor;
+    }
+
+    public Color GetPlayerColorAsColor(string playerName)
+    {
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            if (player.NickName == playerName && player.CustomProperties.ContainsKey("playerColor"))
+            {
+                int colorIndex = (int)player.CustomProperties["playerColor"];
+                if (colorIndex >= 0 && colorIndex < playerColors.Length)
+                    return playerColors[colorIndex];
+            }
+        }
+        return Color.white;
+    }
+
+    // 🤖 봇 색상 가져오기 (GameScene에서 사용)
+    public Color GetBotColorAsColor(string botName)
+    {
+        foreach (BotPlayer bot in botPlayers)
+        {
+            if (bot.botName == botName)
+            {
+                if (bot.colorIndex >= 0 && bot.colorIndex < playerColors.Length)
+                    return playerColors[bot.colorIndex];
+            }
+        }
+        return Color.white;
+    }
+
+    #endregion
 
     #region Notification System
     public void ShowNotification(string message, NotificationType type = NotificationType.Info)
@@ -997,9 +1484,25 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         // 씬 전환 전 정리 작업
         if (chatPanel) chatPanel.SetActive(false);
 
+        // 🤖 봇 정보를 GameScene에 전달하기 위해 PlayerPrefs에 저장
+        SaveBotDataForGameScene();
+
         // 디버그 로그 추가
         Debug.Log("🚀 GameScene으로 전환 시도!");
         PhotonNetwork.LoadLevel("GameScene");
+    }
+
+    // 🤖 봇 데이터를 GameScene에 전달하기 위한 저장
+    void SaveBotDataForGameScene()
+    {
+        PlayerPrefs.SetInt("BotCount", botPlayers.Count);
+        for (int i = 0; i < botPlayers.Count; i++)
+        {
+            PlayerPrefs.SetString($"BotName{i}", botPlayers[i].botName);
+            PlayerPrefs.SetInt($"BotColor{i}", botPlayers[i].colorIndex);
+        }
+        PlayerPrefs.Save();
+        Debug.Log($"🤖 봇 데이터 저장 완료: {botPlayers.Count}개");
     }
 
     void OnLeaveRoomButtonClicked()
@@ -1008,52 +1511,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         ShowNotification("방에서 나왔습니다.", NotificationType.Info);
     }
 
-    // B2: 비밀번호 관련 함수들
-    void ShowPasswordPrompt(string roomName)
-    {
-        attemptingRoomName = roomName;
-
-        if (passwordPromptPanel)
-        {
-            passwordPromptPanel.SetActive(true);
-
-            if (joinPasswordInput)
-            {
-                joinPasswordInput.text = "";
-                joinPasswordInput.Select();
-            }
-        }
-
-        Debug.Log($"비공개 방 비밀번호 입력 요청: {roomName}");
-    }
-
-    void OnConfirmPasswordClicked()
-    {
-        string inputPassword = joinPasswordInput.text.Trim();
-
-        if (string.IsNullOrEmpty(inputPassword))
-        {
-            ShowNotification("비밀번호를 입력해주세요!", NotificationType.Error);
-            return;
-        }
-
-        selectedRoomPassword = inputPassword;
-        selectedRoomName = attemptingRoomName;
-
-        if (passwordPromptPanel)
-            passwordPromptPanel.SetActive(false);
-
-        OnJoinRoomButtonClicked();
-    }
-
-    void OnCancelPasswordClicked()
-    {
-        if (passwordPromptPanel)
-            passwordPromptPanel.SetActive(false);
-
-        attemptingRoomName = "";
-        selectedRoomPassword = "";
-    }
     #endregion
 
     #region IConnectionCallbacks
@@ -1184,6 +1641,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
 
         UpdatePlayerList();
+        UpdateBotUI(); // 🤖 봇 UI 업데이트 추가
         roomNameInput.text = "";
 
         if (!string.IsNullOrEmpty(selectedRoomPassword))
@@ -1231,6 +1689,10 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             autoRefreshCoroutine = null;
         }
 
+        // 🤖 방을 나갈 때 봇 초기화
+        botPlayers.Clear();
+        botCounter = 0;
+
         roomPanel.SetActive(false);
         roomListPanel.SetActive(true);
 
@@ -1276,6 +1738,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
 
         UpdatePlayerList();
+        UpdateBotUI(); // 🤖 방장 변경 시 봇 UI도 업데이트
 
         // 채팅에 방장 변경 메시지
         DisplaySystemMessage($"{newMasterClient.NickName}님이 새로운 방장이 되었습니다!");
@@ -1519,7 +1982,7 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         Debug.Log($"공개 방 선택: {roomName}");
     }
 
-    // 깔끔한 플레이어 목록 업데이트 (추방 버튼 제거)
+    // 🤖 봇 포함 플레이어 목록 업데이트 
     void UpdatePlayerList()
     {
         if (PhotonNetwork.CurrentRoom == null || !PhotonNetwork.InRoom || playerListContent == null)
@@ -1530,9 +1993,11 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             Destroy(child.gameObject);
         }
 
-        Debug.Log($"=== 플레이어 목록 업데이트 시작 ===");
+        Debug.Log($"=== 플레이어 목록 업데이트 시작 (실제 플레이어 + 봇) ===");
 
         int playerIndex = 0;
+
+        // 1. 실제 플레이어들 표시
         foreach (Player player in PhotonNetwork.PlayerList)
         {
             Debug.Log($"플레이어 {playerIndex + 1}: {player.NickName} (방장: {player.IsMasterClient})");
@@ -1575,7 +2040,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
                 string colorName = (playerColorIndex >= 0) ? colorNames[playerColorIndex] : "미선택";
                 string playerText = $"[{colorName}] {player.NickName}";
 
-
                 if (player.IsMasterClient)
                 {
                     playerText += " [방장]";
@@ -1612,13 +2076,75 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             playerIndex++;
         }
 
+        // 🤖 2. 봇들 표시
+        foreach (BotPlayer bot in botPlayers)
+        {
+            Debug.Log($"봇 {playerIndex + 1}: {bot.botName} (색상: {bot.colorIndex})");
+
+            GameObject botItem = Instantiate(playerItemPrefab, playerListContent);
+
+            if (botItem == null)
+            {
+                Debug.LogError("❌ BotItem 생성 실패!");
+                continue;
+            }
+
+            RectTransform rectTransform = botItem.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                rectTransform.anchoredPosition = new Vector2(0, -playerIndex * 60);
+            }
+
+            // 봇 텍스트 설정
+            Text[] allTexts = botItem.GetComponentsInChildren<Text>(true);
+            Text botNameText = null;
+
+            // 봇 이름 표시용 Text 찾기
+            foreach (Text text in allTexts)
+            {
+                if (text.transform.parent == botItem.transform)
+                {
+                    botNameText = text;
+                    break;
+                }
+            }
+
+            if (botNameText != null)
+            {
+                string colorName = (bot.colorIndex >= 0 && bot.colorIndex < colorNames.Length) ? colorNames[bot.colorIndex] : "미선택";
+                string botText = $"[{colorName}] {bot.botName} [AI] ✅";
+
+                botNameText.text = botText;
+                botNameText.color = new Color(0.3f, 0.3f, 0.3f); // 회색으로 구분
+                botNameText.fontStyle = FontStyle.Italic;
+
+                // 봇 배경 색상 (회색)
+                Image bg = botItem.GetComponent<Image>();
+                if (bg) bg.color = new Color(0.9f, 0.9f, 0.9f);
+            }
+
+            // 모든 버튼 비활성화
+            Button[] allButtons = botItem.GetComponentsInChildren<Button>(true);
+            foreach (Button btn in allButtons)
+            {
+                btn.gameObject.SetActive(false);
+            }
+
+            playerIndex++;
+        }
+
+        // 🤖 인원수 텍스트 업데이트 (봇 포함)
         if (playersText != null)
-            playersText.text = $"현재 인원: {PhotonNetwork.CurrentRoom.PlayerCount}/4명";
+        {
+            int totalPlayers = PhotonNetwork.CurrentRoom.PlayerCount + botPlayers.Count;
+            playersText.text = $"현재 인원: {totalPlayers}/4명 (봇: {botPlayers.Count})";
+        }
 
         UpdateReadyButton();
         UpdateGameStartCondition();
+        UpdateBotUI(); // 🤖 봇 UI도 업데이트
 
-        Debug.Log($"=== 플레이어 목록 업데이트 완료 ===");
+        Debug.Log($"=== 플레이어 목록 업데이트 완료 (총 {playerIndex}명) ===");
     }
 
     IEnumerator AutoRefreshPlayerList()
@@ -1633,136 +2159,6 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
         }
     }
 
-    // 색상 시스템 초기화
-    // 게임 시작 시 색상 미선택 플레이어에게 자동 배정
-    void AssignRandomColors()
-    {
-        List<int> availableColors = new List<int> { 0, 1, 2, 3, 4, 5, 6, 7 };
-
-        // 이미 선택된 색상 제거
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            if (player.CustomProperties.ContainsKey("playerColor"))
-            {
-                int usedColor = (int)player.CustomProperties["playerColor"];
-                availableColors.Remove(usedColor);
-            }
-        }
-
-        // 미선택 플레이어에게 배정
-        int colorIndex = 0;
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            if (!player.CustomProperties.ContainsKey("playerColor") && colorIndex < availableColors.Count)
-            {
-                if (player == PhotonNetwork.LocalPlayer)
-                {
-                    SelectColor(availableColors[colorIndex]);
-                }
-                colorIndex++;
-            }
-        }
-    }
-    void SetupColorSystem()
-    {
-        if (colorSelectionPanel) colorSelectionPanel.SetActive(false);
-        if (openColorPanelButton) openColorPanelButton.onClick.AddListener(OpenColorSelection);
-        if (closeColorPanelButton) closeColorPanelButton.onClick.AddListener(CloseColorSelection);
-
-        for (int i = 0; i < colorButtons.Length && i < playerColors.Length; i++)
-        {
-            if (colorButtons[i] != null)
-            {
-                int colorIndex = i;
-                ColorBlock colors = colorButtons[i].colors;
-                colors.normalColor = playerColors[i];
-                colors.highlightedColor = LightenColor(playerColors[i], 0.2f);
-                colors.pressedColor = DarkenColor(playerColors[i], 0.2f);
-                colorButtons[i].colors = colors;
-                colorButtons[i].onClick.AddListener(() => SelectColor(colorIndex));
-
-                Text btnText = colorButtons[i].GetComponentInChildren<Text>();
-                if (btnText != null) btnText.text = colorNames[i];
-            }
-        }
-
-        if (myColorPreview) myColorPreview.color = Color.white;
-        if (myColorText) myColorText.text = "색상 선택";
-
-        Debug.Log("플레이어 색상 시스템 초기화 완료");
-    }
-
-    void OpenColorSelection()
-    {
-        if (!PhotonNetwork.InRoom)
-        {
-            ShowNotification("방에 입장한 후 색상을 선택할 수 있습니다!", NotificationType.Warning);
-            return;
-        }
-        if (colorSelectionPanel) colorSelectionPanel.SetActive(true);
-    }
-
-    void CloseColorSelection()
-    {
-        if (colorSelectionPanel) colorSelectionPanel.SetActive(false);
-    }
-
-    void SelectColor(int colorIndex)
-    {
-        if (!PhotonNetwork.InRoom) return;
-
-        if (IsColorTaken(colorIndex))
-        {
-            ShowNotification($"{colorNames[colorIndex]} 색상은 다른 플레이어가 사용 중입니다!", NotificationType.Warning);
-            return;
-        }
-
-        mySelectedColor = colorIndex;
-        playerColorMap[PhotonNetwork.LocalPlayer.NickName] = colorIndex;
-
-        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable();
-        props["playerColor"] = colorIndex;
-        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
-
-        if (myColorPreview) myColorPreview.color = playerColors[mySelectedColor];
-        if (myColorText) myColorText.text = $"내 색상: {colorNames[mySelectedColor]}";
-
-        UpdatePlayerList();
-        ShowNotification($"{colorNames[colorIndex]} 색상을 선택했습니다!", NotificationType.Success);
-    }
-
-    bool IsColorTaken(int colorIndex)
-    {
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            if (player.CustomProperties.ContainsKey("playerColor"))
-            {
-                int playerColorIndex = (int)player.CustomProperties["playerColor"];
-                if (playerColorIndex == colorIndex && player != PhotonNetwork.LocalPlayer)
-                    return true;
-            }
-        }
-        return false;
-    }
-
-    public int GetMyColorIndex()
-    {
-        return mySelectedColor;
-    }
-
-    public Color GetPlayerColorAsColor(string playerName)
-    {
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            if (player.NickName == playerName && player.CustomProperties.ContainsKey("playerColor"))
-            {
-                int colorIndex = (int)player.CustomProperties["playerColor"];
-                if (colorIndex >= 0 && colorIndex < playerColors.Length)
-                    return playerColors[colorIndex];
-            }
-        }
-        return Color.white;
-    }
     #endregion
 
     void OnEnable()
