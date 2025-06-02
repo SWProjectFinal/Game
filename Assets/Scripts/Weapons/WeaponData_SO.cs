@@ -22,4 +22,8 @@ public class WeaponData_SO : ScriptableObject
     public float explosionForce = 0f;
 
     public bool isInstantUse = false;
+
+    [Header("물리 옵션")]
+    public bool useGravity = false;
+
 }

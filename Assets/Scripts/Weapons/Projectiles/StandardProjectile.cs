@@ -5,6 +5,9 @@ public class StandardProjectile : MonoBehaviour
     public WeaponData_SO weaponData;
     private Rigidbody2D rb;
 
+    public float power = 1f; // 외부에서 WeaponManager가 넘겨줄 파워
+
+
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -14,9 +17,23 @@ public class StandardProjectile : MonoBehaviour
     {
         if (rb != null && weaponData != null)
         {
-            rb.velocity = transform.right * weaponData.bulletSpeed;
+            rb.gravityScale = weaponData.useGravity ? 1f : 0f;
+
+            // ✅ 차징된 파워 값을 곱해서 발사!
+            rb.velocity = transform.right.normalized * weaponData.bulletSpeed * power;
         }
     }
+
+    void FixedUpdate()
+    {
+        if (rb != null && rb.velocity.sqrMagnitude > 0.01f)
+        {
+            Vector2 dir = rb.velocity.normalized;
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+        }
+    }
+
 
     void OnCollisionEnter2D(Collision2D collision)
     {

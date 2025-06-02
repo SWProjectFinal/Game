@@ -138,6 +138,9 @@ public class WeaponManager : MonoBehaviourPunCallbacks
     void RPC_Fire(int weaponTypeInt, Vector2 dir, float power)
     {
         Debug.Log("발사 시도됨");
+        Debug.Log("🔫 BasicGun 발사 준비됨");
+        Debug.Log("🚀 프리팹 인스턴스 생성 완료");
+        Debug.Log("✅ weaponData 주입!");
 
         WeaponType type = (WeaponType)weaponTypeInt;
 
@@ -146,12 +149,13 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         {
             Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
 
-            GameObject proj = Instantiate(basicGunSO.projectilePrefab, spawnPos, Quaternion.identity);
+            GameObject proj = Instantiate(basicGunSO.projectilePrefab, spawnPos, firePoint.rotation);
 
             var standardProj = proj.GetComponent<StandardProjectile>();
             if (standardProj != null)
             {
                 standardProj.weaponData = basicGunSO;
+                standardProj.power = power; // ✅ 여기!
             }
             else
             {
