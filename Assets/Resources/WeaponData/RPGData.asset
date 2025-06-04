@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0b1aa77996cc39348a709acb4df5f965, type: 3}
-  m_Name: BlackholeData
+  m_Name: RPGData
   m_EditorClassIdentifier: 
-  weaponName: "\uBE14\uB799\uD640"
-  icon: {fileID: 21300000, guid: 3437dd93bd896a048a1843e8e34ec98f, type: 3}
-  projectilePrefab: {fileID: 2528828599950244161, guid: 4fb9a4823e914944ba2cf54d6036a31a, type: 3}
-  damage: 0
+  weaponName: RPG
+  icon: {fileID: 21300000, guid: 4f1cda63449f5b2458c309d89ddc1735, type: 3}
+  projectilePrefab: {fileID: 6449462980904097254, guid: 34fb3ee6ce7847e41b673d89233f762a, type: 3}
+  damage: 80
   range: 10
   cooldown: 1
-  bulletSpeed: 1.2
+  bulletSpeed: 1.5
   explosionEffectPrefab: {fileID: 0}
   fireSound: {fileID: 0}
-  explosionRadius: 0
-  explosionForce: 0
+  explosionRadius: 3
+  explosionForce: 20
   isInstantUse: 0
   useGravity: 1

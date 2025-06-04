@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 2724059783076286858}
   - component: {fileID: 6789319150837571487}
   - component: {fileID: 1695582924635276308}
-  - component: {fileID: 3185872071473765691}
   m_Layer: 0
   m_Name: RPGProjectile
   m_TagString: Untagged
@@ -149,19 +148,3 @@ CircleCollider2D:
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
   m_Radius: 0.9
---- !u!114 &3185872071473765691
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6449462980904097254}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2cf830714c35b30428c08400f63722fa, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  power: 10
-  explosionRadius: 3
-  explosionForce: 20
-  explosionEffectPrefab: {fileID: 0}
