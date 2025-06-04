@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Photon.Pun; // ← 추가 필요!
 
 public class CatController : MonoBehaviour
 {
@@ -47,6 +48,10 @@ public class CatController : MonoBehaviour
         // ===== 턴제 조건 추가 =====
         if (isDead || !canMove) return;
 
+        // ===== 소유권 체크 추가 =====
+        PhotonView pv = GetComponent<PhotonView>();
+        if (pv != null && !pv.IsMine) return; // 내 캐릭터가 아니면 입력 무시!
+
         moveInput = (int)Input.GetAxisRaw("Horizontal");
         lookInput = Input.GetAxisRaw("Vertical");
 
@@ -77,6 +82,10 @@ public class CatController : MonoBehaviour
     {
         // ===== 턴제 조건 추가 =====
         if (isDead || !canMove) return;
+
+        // ===== 소유권 체크 추가 =====
+        PhotonView pv = GetComponent<PhotonView>();
+        if (pv != null && !pv.IsMine) return; // 내 캐릭터가 아니면 물리 처리 안 함!
 
         isGrounded = IsGrounded();
 
