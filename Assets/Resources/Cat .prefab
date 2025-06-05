@@ -18,7 +18,7 @@ GameObject:
   - component: {fileID: 8401289812595028819}
   m_Layer: 0
   m_Name: 'Cat '
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -215,6 +215,7 @@ MonoBehaviour:
   OwnershipTransfer: 0
   observableSearch: 0
   ObservedComponents:
+  - {fileID: 8069481259376466130}
   - {fileID: 8401289812595028819}
   sceneViewId: 0
   InstantiationId: 0

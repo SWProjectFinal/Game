@@ -159,15 +159,28 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
 
         isGameActive = true;
 
+        // ✅ 게임 시작 시 모든 플레이어 움직임 먼저 차단
+        OnPlayerMovementChanged?.Invoke(false);
+        Debug.Log("게임 시작 - 모든 플레이어 움직임 차단");
+
         // 봇이 이미 추가되었다면 바로 시작, 아니면 플레이어만으로 시작
         if (allPlayers.Count > 0)
         {
-            StartTurn();
+            // ✅ 약간의 딜레이 후 첫 턴 시작 (네트워크 동기화 대기)
+            StartCoroutine(DelayedFirstTurn());
         }
         else
         {
             Debug.LogWarning("플레이어 목록이 비어있습니다!");
         }
+    }
+
+    // ✅ 새로 추가할 함수
+    IEnumerator DelayedFirstTurn()
+    {
+        yield return new WaitForSeconds(0.5f);
+        Debug.Log("첫 턴 시작!");
+        StartTurn();
     }
 
     void StartTurn()

@@ -133,7 +133,7 @@ GameObject:
   - component: {fileID: 424767928}
   - component: {fileID: 424767927}
   - component: {fileID: 424767926}
-  m_Layer: 8
+  m_Layer: 9
   m_Name: Map
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -487,8 +487,8 @@ Transform:
   m_GameObject: {fileID: 424767925}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.0147, y: -0.0046, z: 0}
-  m_LocalScale: {x: 1.3870974, y: 0.9717142, z: 1}
+  m_LocalPosition: {x: 0.0008, y: 0.0018, z: 0}
+  m_LocalScale: {x: 1.1568719, y: 0.9768339, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -526,12 +526,6 @@ MonoBehaviour:
   spawnPoints: []
   spawnHeight: 0
   mapBounds: {x: 10, y: 5}
-  maxBots: 3
-  botNames:
-  - Bot1
-  - Bot2
-  - Bot3
-  - Bot4
   spawnedPlayers: []
   spawnedBots: []
 --- !u!4 &554697306
@@ -543,7 +537,7 @@ Transform:
   m_GameObject: {fileID: 554697304}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.7816824, y: 1.9491719, z: 0.008517485}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -604,6 +598,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   turnDuration: 20
   itemUseTurnDuration: 5
+  botPlayers: []
+  allPlayers: []
   currentPlayerIndex: 0
   isGameActive: 0
   currentTurnTime: 0
@@ -715,6 +711,103 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &923085833
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 923085835}
+  - component: {fileID: 923085834}
+  - component: {fileID: 923085837}
+  - component: {fileID: 923085836}
+  m_Layer: 9
+  m_Name: ItemSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &923085834
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 923085833}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e63c88fea27df774fbafcf0000e3b018, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  itemBoxPrefab: {fileID: 0}
+  mapBounds: {x: 10, y: 3}
+  spawnHeight: 0
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 512
+  spawn3Chance: 0.1
+  spawn2Chance: 0.2
+  spawnedBoxes: []
+  itemDropTable: {fileID: 11400000, guid: 30b333e0fe61483478458fc23f5b5da2, type: 2}
+  useDummySystem: 1
+  dummyBoxPrefab: {fileID: 4668149066186598798, guid: 31855384b68cf604dbd996283a3897ad, type: 3}
+--- !u!4 &923085835
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 923085833}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &923085836
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 923085833}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 627855c7f81362d41938ffe0b1475957, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SynchronizePosition: 1
+  m_SynchronizeRotation: 1
+  m_SynchronizeScale: 0
+  m_UseLocal: 1
+--- !u!114 &923085837
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 923085833}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ObservedComponentsFoldoutOpen: 1
+  Group: 0
+  prefixField: -1
+  Synchronization: 3
+  OwnershipTransfer: 0
+  observableSearch: 0
+  ObservedComponents:
+  - {fileID: 923085836}
+  sceneViewId: 3
+  InstantiationId: 0
+  isRuntimeInstantiated: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -723,3 +816,4 @@ SceneRoots:
   - {fileID: 424767928}
   - {fileID: 778672735}
   - {fileID: 554697306}
+  - {fileID: 923085835}

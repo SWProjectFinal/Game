@@ -152,7 +152,35 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     // 로비에서 설정한 색깔 적용
     ApplyPlayerColorFromLobby(playerObj);
 
+    // ===== 충돌 무시 설정 추가 ===== ← 새로 추가
+    StartCoroutine(SetupPlayerCollisions(playerObj));
+
     Debug.Log($"내 플레이어 스폰: {PhotonNetwork.LocalPlayer.NickName} at {position}");
+  }
+
+  // ===== 플레이어 충돌 설정 코루틴 ===== ← 새로 추가
+  IEnumerator SetupPlayerCollisions(GameObject newPlayer)
+  {
+    // 다른 플레이어들이 모두 스폰될 때까지 잠시 대기
+    yield return new WaitForSeconds(1f);
+
+    // 모든 기존 플레이어들의 충돌 설정 새로고침
+    GameObject[] allCats = GameObject.FindGameObjectsWithTag("Player");
+    if (allCats.Length == 0)
+    {
+      allCats = FindObjectsOfType<GameObject>().Where(obj => obj.name.Contains("Cat")).ToArray();
+    }
+
+    foreach (GameObject cat in allCats)
+    {
+      CatController catController = cat.GetComponent<CatController>();
+      if (catController != null)
+      {
+        catController.RefreshPlayerCollisions();
+      }
+    }
+
+    Debug.Log("모든 플레이어 충돌 설정 새로고침 완료");
   }
 
   void ApplyPlayerColorFromLobby(GameObject playerObj)
