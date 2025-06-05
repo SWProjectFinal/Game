@@ -1,3 +1,4 @@
+
 using UnityEngine;
 using Photon.Pun;
 using System.Collections.Generic;
@@ -28,6 +29,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
     [Header("Scriptable 무기")]
     public WeaponData_SO basicGunSO;
     public WeaponData_SO blackholeSO;
+    public WeaponData_SO rpgSO;
 
     public override void OnConnectedToMaster()
     {
@@ -76,10 +78,22 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             });
         }
 
+        if (rpgSO != null)
+        {
+            inventory.Add(new WeaponData
+            {
+                type = WeaponType.RPG,
+                displayName = rpgSO.weaponName,
+                isInstantUse = rpgSO.isInstantUse,
+                icon = rpgSO.icon,
+                projectilePrefab = rpgSO.projectilePrefab,
+                damage = rpgSO.damage
+            });
+        }
+
         FindObjectOfType<InventoryManager>().UpdateInventoryUI();
         InventoryManager.Instance.SetSelectedSlot(0);
     }
-
 
     void Update()
     {
@@ -151,7 +165,6 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
         WeaponType type = (WeaponType)weaponTypeInt;
 
-        // ✅ BasicGun (ScriptableObject)
         if (type == WeaponType.BasicGun && basicGunSO != null)
         {
             Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
@@ -166,7 +179,6 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        // ✅ Blackhole (ScriptableObject)
         if (type == WeaponType.Blackhole && blackholeSO != null)
         {
             Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
@@ -181,7 +193,20 @@ public class WeaponManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        // ✅ 기존 방식 (WeaponData 기반)
+        if (type == WeaponType.RPG && rpgSO != null)
+        {
+            Vector3 spawnPos = firePoint != null ? firePoint.position : transform.position;
+            GameObject proj = Instantiate(rpgSO.projectilePrefab, spawnPos, firePoint.rotation);
+
+            var rpgProj = proj.GetComponent<RPGProjectile_SO>();
+            if (rpgProj != null)
+            {
+                rpgProj.weaponData = rpgSO;
+                rpgProj.power = power;
+            }
+            return;
+        }
+
         WeaponData weapon = GetWeaponByType(type);
 
         if (weapon.projectilePrefab == null)
@@ -213,6 +238,4 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         if (w == null) Debug.LogError($"❌ 무기 {type} 못 찾음!");
         return w;
     }
-
-    
 }

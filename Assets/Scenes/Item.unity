@@ -1720,6 +1720,7 @@ MonoBehaviour:
   chargeSpeed: 20
   basicGunSO: {fileID: 11400000, guid: 09eae9329b65068498b408090eabf86a, type: 2}
   blackholeSO: {fileID: 11400000, guid: 57ef4515f977ddd468f7c041f5491b2e, type: 2}
+  rpgSO: {fileID: 11400000, guid: 72468b4b601338347b4814fb06d30770, type: 2}
 --- !u!4 &1599592928
 Transform:
   m_ObjectHideFlags: 0

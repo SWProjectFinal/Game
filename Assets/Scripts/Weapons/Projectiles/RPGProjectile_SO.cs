@@ -4,6 +4,7 @@ public class RPGProjectile_SO : MonoBehaviour
 {
     public WeaponData_SO weaponData;
     public float power = 1f;
+
     private Rigidbody2D rb;
 
     void Awake()
@@ -28,9 +29,17 @@ public class RPGProjectile_SO : MonoBehaviour
             Instantiate(weaponData.explosionEffectPrefab, transform.position, Quaternion.identity);
         }
 
-        // 폭발 반경 처리 예시 (물리효과 넣고 싶으면 여기에 추가)
-        // Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, weaponData.explosionRadius);
-
+        // 나중에 폭발 반경 구현 가능
         Destroy(gameObject);
     }
+
+    void FixedUpdate()
+    {
+        if (rb != null && rb.velocity.sqrMagnitude > 0.01f)
+        {
+            float angle = Mathf.Atan2(rb.velocity.y, rb.velocity.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+        }
+    }
+
 }

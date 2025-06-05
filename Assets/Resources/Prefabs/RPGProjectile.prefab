@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 2724059783076286858}
   - component: {fileID: 6789319150837571487}
   - component: {fileID: 1695582924635276308}
+  - component: {fileID: -5612190462174732097}
   m_Layer: 0
   m_Name: RPGProjectile
   m_TagString: Untagged
@@ -148,3 +149,17 @@ CircleCollider2D:
   m_Offset: {x: 0, y: 0}
   serializedVersion: 2
   m_Radius: 0.9
+--- !u!114 &-5612190462174732097
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6449462980904097254}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 864ced31ee33351408d1604e32aadac0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  weaponData: {fileID: 0}
+  power: 1
