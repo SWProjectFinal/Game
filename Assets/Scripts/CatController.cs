@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Photon.Pun; // ← 추가 필요!
 using System.Linq; // ← 이거 추가
+using UnityEngine.UI; // ← 이 줄 추가!
 
 public class CatController : MonoBehaviour, IPunObservable // ← IPunObservable 추가!
 {
@@ -54,6 +55,9 @@ public class CatController : MonoBehaviour, IPunObservable // ← IPunObservable
         // ===== 다른 플레이어와의 충돌 무시 설정 ===== ← 추가
         IgnorePlayerCollisions();
 
+        //닉네임 적용
+        SetPlayerDisplayName();
+
         // ✅ PhotonView 디버깅
         PhotonView pv = GetComponent<PhotonView>();
         if (pv != null)
@@ -61,7 +65,27 @@ public class CatController : MonoBehaviour, IPunObservable // ← IPunObservable
             Debug.Log($"[{gameObject.name}] PhotonView 확인 - IsMine: {pv.IsMine}");
         }
     }
+    // 새로 추가할 함수
+    void SetPlayerDisplayName()
+    {
+        Text nameText = GetComponentInChildren<Text>();
+        if (nameText != null)
+        {
+            PhotonView pv = GetComponent<PhotonView>();
+            if (pv != null && pv.Owner != null)
+            {
+                // 실제 플레이어
+                nameText.text = pv.Owner.NickName;
+            }
+            else
+            {
+                // 봇인 경우
+                nameText.text = gameObject.name;
+            }
 
+            Debug.Log($"닉네임 설정 완료: {nameText.text}");
+        }
+    }
     // ===== 다른 플레이어와의 충돌 무시 함수 ===== ← 새로 추가
     void IgnorePlayerCollisions()
     {

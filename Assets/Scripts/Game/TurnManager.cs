@@ -49,13 +49,36 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
 
     void Start()
     {
+        // ✅ 모든 클라이언트에서 기본 초기화 (수정됨)
+        InitializePlayers();
+
         // 마스터 클라이언트만 게임 로직 실행
         if (PhotonNetwork.IsMasterClient)
         {
-            InitializePlayers();
+            Debug.Log("마스터 클라이언트에서 게임 로직 시작");
             // 봇이 추가될 때까지 대기 (PlayerSpawner에서 AddBots 호출할 예정)
-            Debug.Log("플레이어 초기화 완료. 봇 추가 대기 중...");
         }
+        else
+        {
+            Debug.Log("일반 클라이언트 - TurnManager 대기 모드");
+            // GameUIManager에 초기화 알림
+            StartCoroutine(NotifyGameUIManager());
+        }
+    }
+
+    // ✅ 새로 추가: 일반 클라이언트에서 GameUIManager 초기화
+    IEnumerator NotifyGameUIManager()
+    {
+        // GameUIManager가 준비될 때까지 대기
+        while (GameUIManager.Instance == null)
+        {
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        yield return new WaitForSeconds(0.5f); // 추가 대기
+
+        Debug.Log("일반 클라이언트에서 GameUIManager 초기화 요청");
+        GameUIManager.Instance.InitializePlayerList();
     }
 
     void InitializePlayers()
@@ -63,13 +86,16 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
         // 현재 방에 있는 모든 플레이어를 가져와서 랜덤 순서로 섞기
         var photonPlayers = PhotonNetwork.PlayerList.ToList();
 
-        // 랜덤으로 섞기 (Fisher-Yates 셔플)
-        for (int i = 0; i < photonPlayers.Count; i++)
+        // 랜덤으로 섞기 (Fisher-Yates 셔플) - 마스터만 실행
+        if (PhotonNetwork.IsMasterClient)
         {
-            var temp = photonPlayers[i];
-            int randomIndex = Random.Range(i, photonPlayers.Count);
-            photonPlayers[i] = photonPlayers[randomIndex];
-            photonPlayers[randomIndex] = temp;
+            for (int i = 0; i < photonPlayers.Count; i++)
+            {
+                var temp = photonPlayers[i];
+                int randomIndex = Random.Range(i, photonPlayers.Count);
+                photonPlayers[i] = photonPlayers[randomIndex];
+                photonPlayers[randomIndex] = temp;
+            }
         }
 
         players = photonPlayers;
@@ -101,13 +127,16 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
             allPlayers.Add(botName);
         }
 
-        // 통합 목록을 랜덤으로 섞기
-        for (int i = 0; i < allPlayers.Count; i++)
+        // 통합 목록을 랜덤으로 섞기 (마스터만)
+        if (PhotonNetwork.IsMasterClient)
         {
-            string temp = allPlayers[i];
-            int randomIndex = Random.Range(i, allPlayers.Count);
-            allPlayers[i] = allPlayers[randomIndex];
-            allPlayers[randomIndex] = temp;
+            for (int i = 0; i < allPlayers.Count; i++)
+            {
+                string temp = allPlayers[i];
+                int randomIndex = Random.Range(i, allPlayers.Count);
+                allPlayers[i] = allPlayers[randomIndex];
+                allPlayers[randomIndex] = temp;
+            }
         }
 
         Debug.Log($"🤖 봇 {botNames.Count}개 추가 완료!");
@@ -120,6 +149,42 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
 
         // 턴 시스템 재시작
         currentPlayerIndex = 0;
+
+        // ✅ 봇 추가 후 모든 클라이언트에 동기화
+        if (PhotonNetwork.IsMasterClient)
+        {
+            photonView.RPC("SyncGameData", RpcTarget.Others,
+                          allPlayers.ToArray(),
+                          botPlayers.ToArray(),
+                          currentPlayerIndex,
+                          isGameActive);
+        }
+    }
+
+    // ✅ 새로 추가: 게임 데이터 동기화 RPC
+    [PunRPC]
+    void SyncGameData(string[] playerNames, string[] botNames, int currentIndex, bool gameActive)
+    {
+        allPlayers = new List<string>(playerNames);
+        botPlayers = new List<string>(botNames);
+        currentPlayerIndex = currentIndex;
+        isGameActive = gameActive;
+
+        Debug.Log($"🔄 게임 데이터 동기화 완료: 플레이어 {allPlayers.Count}명, 봇 {botPlayers.Count}개");
+
+        // GameUIManager에 업데이트 알림
+        if (GameUIManager.Instance != null)
+        {
+            StartCoroutine(DelayedUIUpdate());
+        }
+    }
+
+    // ✅ 새로 추가: 지연된 UI 업데이트
+    IEnumerator DelayedUIUpdate()
+    {
+        yield return new WaitForSeconds(0.2f);
+        GameUIManager.Instance.InitializePlayerList();
+        Debug.Log("일반 클라이언트에서 UI 업데이트 완료");
     }
 
     // 해당 이름이 봇인지 확인
@@ -166,12 +231,39 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
         // 봇이 이미 추가되었다면 바로 시작, 아니면 플레이어만으로 시작
         if (allPlayers.Count > 0)
         {
+            // ✅ 모든 클라이언트에 게임 시작 동기화
+            photonView.RPC("SyncGameStart", RpcTarget.Others,
+                          allPlayers.ToArray(),
+                          botPlayers.ToArray(),
+                          currentPlayerIndex);
+
             // ✅ 약간의 딜레이 후 첫 턴 시작 (네트워크 동기화 대기)
             StartCoroutine(DelayedFirstTurn());
         }
         else
         {
             Debug.LogWarning("플레이어 목록이 비어있습니다!");
+        }
+    }
+
+    // ✅ 새로 추가: 게임 시작 동기화 RPC
+    [PunRPC]
+    void SyncGameStart(string[] playerNames, string[] botNames, int currentIndex)
+    {
+        allPlayers = new List<string>(playerNames);
+        botPlayers = new List<string>(botNames);
+        currentPlayerIndex = currentIndex;
+        isGameActive = true;
+
+        Debug.Log($"🎮 게임 시작 동기화: {allPlayers.Count}명 참여");
+
+        // 움직임 차단
+        OnPlayerMovementChanged?.Invoke(false);
+
+        // UI 업데이트
+        if (GameUIManager.Instance != null)
+        {
+            GameUIManager.Instance.InitializePlayerList();
         }
     }
 
@@ -194,6 +286,12 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
         isItemUsed = false;
 
         Debug.Log($"{currentPlayerName}의 턴 시작! {(isBot ? "[봇]" : "[플레이어]")}");
+
+        // ✅ 턴 시작 RPC 전송 (모든 클라이언트 동기화)
+        if (PhotonNetwork.IsMasterClient)
+        {
+            photonView.RPC("SyncTurnStart", RpcTarget.Others, currentPlayerName, isBot);
+        }
 
         // 이벤트 발생 (봇인 경우 null 전달)
         if (!isBot)
@@ -220,6 +318,34 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
         if (isBot)
         {
             StartCoroutine(BotTurn());
+        }
+    }
+
+    // ✅ 새로 추가: 턴 시작 동기화 RPC
+    [PunRPC]
+    void SyncTurnStart(string currentPlayerName, bool isBot)
+    {
+        Debug.Log($"🔄 턴 시작 동기화: {currentPlayerName} {(isBot ? "[봇]" : "[플레이어]")}");
+
+        // 현재 플레이어 인덱스 찾기
+        for (int i = 0; i < allPlayers.Count; i++)
+        {
+            if (allPlayers[i] == currentPlayerName)
+            {
+                currentPlayerIndex = i;
+                break;
+            }
+        }
+
+        // 이벤트 발생
+        if (!isBot)
+        {
+            var player = GetPlayerByName(currentPlayerName);
+            OnTurnStart?.Invoke(player);
+        }
+        else
+        {
+            OnTurnStart?.Invoke(null);
         }
     }
 
@@ -378,7 +504,7 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
         Debug.Log("게임 종료!");
     }
 
-    // 네트워크 동기화
+    // ✅ 개선된 네트워크 동기화
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
     {
         if (stream.IsWriting)
@@ -388,6 +514,9 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
             stream.SendNext(currentTurnTime);
             stream.SendNext(isGameActive);
             stream.SendNext(isItemUsed);
+
+            // ✅ allPlayers 길이도 전송
+            stream.SendNext(allPlayers.Count);
         }
         else
         {
@@ -396,6 +525,15 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
             currentTurnTime = (float)stream.ReceiveNext();
             isGameActive = (bool)stream.ReceiveNext();
             isItemUsed = (bool)stream.ReceiveNext();
+
+            // ✅ allPlayers 길이 확인
+            int receivedPlayerCount = (int)stream.ReceiveNext();
+
+            // UI 업데이트 트리거 (플레이어 수가 변경되었을 때)
+            if (receivedPlayerCount != allPlayers.Count && GameUIManager.Instance != null)
+            {
+                StartCoroutine(DelayedUIUpdate());
+            }
         }
     }
 }
