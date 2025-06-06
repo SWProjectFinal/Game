@@ -138,9 +138,12 @@ public class ItemSpawner : MonoBehaviourPun
 
         for (int i = 0; i < maxAttempts; i++)
         {
-            // Z를 완전히 음수로 제한 (카메라 안쪽)
-            float x = Random.Range(-4f, 4f);   // X: -4 ~ +4
-            float z = Random.Range(-2f, -0.2f); // Z: -2 ~ -0.2 (완전 음수)
+            // ✅ mapBounds 사용하도록 수정
+            float x = Random.Range(-mapBounds.x, mapBounds.x);   // 전체 맵 범위 사용
+            float z = Random.Range(-mapBounds.y, mapBounds.y);   // 전체 맵 범위 사용
+
+            // 단, Z가 양수가 되지 않도록 제한 (카메라 뒤쪽 방지)
+            if (z > -0.2f) z = Random.Range(-mapBounds.y, -0.2f);
 
             // 충분히 높은 곳에서 시작
             Vector3 rayStart = new Vector3(x, 10f, z);

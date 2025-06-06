@@ -1356,7 +1356,7 @@ MonoBehaviour:
   catPrefab: {fileID: 6160795662189038639, guid: 50dd8a07c0b64d44099d20950bc60200, type: 3}
   spawnPoints: []
   spawnHeight: 0
-  mapBounds: {x: 10, y: 5}
+  mapBounds: {x: 8.8, y: 5}
   spawnedPlayers: []
   spawnedBots: []
 --- !u!4 &554697306

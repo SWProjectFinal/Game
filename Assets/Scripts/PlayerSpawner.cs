@@ -13,7 +13,7 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
   public GameObject catPrefab; // Cat Prefab 할당
   public Transform[] spawnPoints; // 스폰 위치들
   public float spawnHeight = 0f; // 스폰 높이
-  public Vector2 mapBounds = new Vector2(10f, 5f); // 맵 크기 (랜덤 스폰용)
+  public Vector2 mapBounds = new Vector2(8.8f, 5f); // 맵 크기 (랜덤 스폰용)
 
   [Header("스폰된 오브젝트 관리")]
   public List<GameObject> spawnedPlayers = new List<GameObject>();
