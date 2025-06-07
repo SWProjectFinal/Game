@@ -36,8 +36,12 @@ public class RPGProjectile_SO : MonoBehaviour
         // 폭발 이펙트
         if (weaponData.explosionEffectPrefab != null)
         {
-            Instantiate(weaponData.explosionEffectPrefab, transform.position, Quaternion.identity);
+            GameObject fx = Instantiate(weaponData.explosionEffectPrefab, transform.position, Quaternion.identity);
+            float scaleFactor = weaponData.explosionRadius / 50f;
+            fx.transform.localScale = Vector3.one * scaleFactor;
         }
+
+
 
         // 폭발 반경 내 물리 반응
         if (weaponData.explosionRadius > 0f)
