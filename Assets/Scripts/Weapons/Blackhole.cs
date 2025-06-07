@@ -11,8 +11,18 @@ public class Blackhole : MonoBehaviour
 
     [Header("콜라이더 설정")]
     public float minimumPixelPercentage = 0.1f; // 전체 픽셀의 0.1% 이상 남아있어야 콜라이더 생성
-    public float textureUpdateInterval = 0.02f;
-    public int pixelBatchSize = 1000;
+
+    [Header("흡입 효과")]
+    public float suctionRange = 30f; // 흡입 범위
+    public float suctionForce = 15f; // 흡입 힘
+    public AnimationCurve suctionCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f); // 거리에 따른 힘 조절
+    public LayerMask suctionTargets = -1; // 흡입할 레이어 (기본값: 모든 레이어)
+    public bool affectPlayers = true;
+    public bool affectEnemies = true;
+    public bool affectProjectiles = true;
+    public float maxSuctionVelocity = 20f; // 최대 흡입 속도 제한
+    public float textureUpdateInterval = 0.05f;
+    public int pixelBatchSize = 500;
 
     private SpriteRenderer groundRenderer;
     private Texture2D tex;
@@ -29,7 +39,9 @@ public class Blackhole : MonoBehaviour
     private float startTime;
     private float lastProcessedRadius = 0f;
 
-    // 정적 변수로 텍스처 관리 (여러 블랙홀이 동시에 존재할 수 있으므로)
+    // 흡입 대상 리스트
+    private System.Collections.Generic.List<Rigidbody2D> suctionTargetsList = new System.Collections.Generic.List<Rigidbody2D>();
+    private System.Collections.Generic.List<Transform> nonRigidbodyTargets = new System.Collections.Generic.List<Transform>();
     private static Texture2D sharedGroundTexture;
     private static Color[] sharedPixels;
     private static bool[] sharedPixelsChanged;
@@ -65,6 +77,7 @@ public class Blackhole : MonoBehaviour
         SetupTexture();
         CalculateBlackholePixelPosition();
         CreateSuctionEffect();
+        StartSuctionDetection();
 
         Invoke(nameof(FinalizeDestruction), duration);
         Destroy(gameObject, duration + 1f);
@@ -162,6 +175,9 @@ public class Blackhole : MonoBehaviour
             // 점진적으로 원형 확장 (링 형태로 처리)
             DeletePixelsInRing(lastProcessedRadius, currentRadius);
             lastProcessedRadius = currentRadius;
+
+            // 흡입 효과 적용
+            ApplySuctionForce();
         }
 
         textureUpdateTimer += Time.fixedDeltaTime;
@@ -307,9 +323,113 @@ public class Blackhole : MonoBehaviour
         return pixelPercentage >= minimumPixelPercentage;
     }
 
+    void StartSuctionDetection()
+    {
+        // 흡입 범위 내의 모든 대상 찾기
+        InvokeRepeating(nameof(UpdateSuctionTargets), 0.1f, 0.2f); // 0.2초마다 대상 업데이트
+    }
+
+    void UpdateSuctionTargets()
+    {
+        if (isDestroyed) return;
+
+        suctionTargetsList.Clear();
+        nonRigidbodyTargets.Clear();
+
+        // 흡입 범위 내의 모든 콜라이더 찾기
+        Collider2D[] colliders = Physics2D.OverlapCircleAll(transform.position, suctionRange, suctionTargets);
+
+        foreach (Collider2D col in colliders)
+        {
+            if (col.gameObject == gameObject) continue; // 자기 자신 제외
+
+            // 태그별 필터링
+            bool shouldAffect = false;
+            if (affectPlayers && (col.CompareTag("Player") || col.CompareTag("player"))) shouldAffect = true;
+            if (affectEnemies && (col.CompareTag("Enemy") || col.CompareTag("enemy"))) shouldAffect = true;
+            if (affectProjectiles && (col.CompareTag("Projectile") || col.CompareTag("projectile") || col.CompareTag("Bullet"))) shouldAffect = true;
+
+            if (!shouldAffect) continue;
+
+            // Rigidbody2D가 있는 경우와 없는 경우 분리
+            Rigidbody2D rb = col.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                suctionTargetsList.Add(rb);
+            }
+            else
+            {
+                nonRigidbodyTargets.Add(col.transform);
+            }
+        }
+    }
+
+    void ApplySuctionForce()
+    {
+        Vector2 blackholePos = transform.position;
+
+        // Rigidbody2D가 있는 대상들에게 물리적 힘 적용
+        foreach (Rigidbody2D target in suctionTargetsList)
+        {
+            if (target == null) continue;
+
+            Vector2 direction = blackholePos - (Vector2)target.transform.position;
+            float distance = direction.magnitude;
+
+            if (distance > suctionRange || distance < 0.5f) continue; // 너무 가깝거나 멀면 제외
+
+            // 거리에 따른 힘 계산
+            float normalizedDistance = 1f - (distance / suctionRange);
+            float forceMultiplier = suctionCurve.Evaluate(normalizedDistance);
+            float currentForce = suctionForce * forceMultiplier;
+
+            Vector2 suctionVector = direction.normalized * currentForce;
+
+            // 최대 속도 제한
+            Vector2 newVelocity = target.velocity + suctionVector * Time.fixedDeltaTime;
+            if (newVelocity.magnitude > maxSuctionVelocity)
+            {
+                newVelocity = newVelocity.normalized * maxSuctionVelocity;
+            }
+
+            // 힘 적용 (AddForce vs 직접 velocity 조작)
+            if (target.CompareTag("Player") || target.CompareTag("player"))
+            {
+                // 플레이어는 부드럽게 끌어당기기
+                target.AddForce(suctionVector, ForceMode2D.Force);
+            }
+            else
+            {
+                // 다른 오브젝트는 더 강하게
+                target.AddForce(suctionVector * 1.5f, ForceMode2D.Force);
+            }
+        }
+
+        // Rigidbody2D가 없는 대상들은 Transform으로 직접 이동
+        foreach (Transform target in nonRigidbodyTargets)
+        {
+            if (target == null) continue;
+
+            Vector2 direction = blackholePos - (Vector2)target.position;
+            float distance = direction.magnitude;
+
+            if (distance > suctionRange || distance < 0.5f) continue;
+
+            float normalizedDistance = 1f - (distance / suctionRange);
+            float forceMultiplier = suctionCurve.Evaluate(normalizedDistance);
+            float moveSpeed = suctionForce * forceMultiplier * 0.1f; // Transform 이동은 더 천천히
+
+            Vector2 moveVector = direction.normalized * moveSpeed * Time.fixedDeltaTime;
+            target.position = (Vector2)target.position + moveVector;
+        }
+    }
+
     void OnDestroy()
     {
         activeBlackholes--;
+        
+        // 반복 호출 중지
+        CancelInvoke();
         
         // 마지막 블랙홀이 파괴될 때만 텍스처 정리
         // 하지만 Ground가 여전히 사용 중이므로 텍스처는 파괴하지 않음
