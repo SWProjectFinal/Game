@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Photon.Pun; // ← 추가 필요!
 
 public class CatController : MonoBehaviour
 {
@@ -29,16 +30,27 @@ public class CatController : MonoBehaviour
     private bool isDead = false;
     private bool isGrounded;
 
+    // ===== 턴제 연결을 위한 추가 변수 =====
+    private bool canMove = true;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+
+        // ===== 턴제 이벤트 구독 =====
+        TurnManager.OnPlayerMovementChanged += OnMovementStateChanged;
     }
 
     void Update()
     {
-        if (isDead) return;
+        // ===== 턴제 조건 추가 =====
+        if (isDead || !canMove) return;
+
+        // ===== 소유권 체크 추가 =====
+        PhotonView pv = GetComponent<PhotonView>();
+        if (pv != null && !pv.IsMine) return; // 내 캐릭터가 아니면 입력 무시!
 
         moveInput = (int)Input.GetAxisRaw("Horizontal");
         lookInput = Input.GetAxisRaw("Vertical");
@@ -68,27 +80,65 @@ public class CatController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (isDead) return;
+        if (isDead || !canMove) return;
+
+        PhotonView pv = GetComponent<PhotonView>();
+        if (pv != null && !pv.IsMine) return;
 
         isGrounded = IsGrounded();
 
         Vector2 velocity = rb.velocity;
 
-        if (isGrounded)
+        // 경사 보정 로직
+        if (isGrounded && moveInput != 0)
         {
-            velocity.x = moveInput * moveSpeed;
+            RaycastHit2D hit = Physics2D.Raycast(groundCheck.position, Vector2.down, 0.5f, groundLayer);
+            if (hit.collider != null)
+            {
+                // 경사면 방향 계산 (법선 벡터 기준으로 오른쪽 방향을 구함)
+                Vector2 slopeDir = Vector2.Perpendicular(hit.normal).normalized;
+                if (slopeDir.y < 0) slopeDir *= -1f; // 오른쪽 경사로 보정
 
-            // 경사에서 미끄러지지 않도록 약간의 수직 보정
-            if (moveInput == 0)
-                velocity.y = 0f;
+                velocity = slopeDir * moveInput * moveSpeed;
+            }
+            else
+            {
+                // 경사 정보 없을 땐 기본 수평 이동
+                velocity.x = moveInput * moveSpeed;
+            }
+        }
+        else if (!isGrounded)
+        {
+            velocity.x = moveInput * moveSpeed * 0.9f;
         }
         else
         {
-            // 공중에서는 x속도는 유지
-            velocity.x = moveInput * moveSpeed * 0.9f;
+            // 정지 시 y속도 고정
+            velocity.y = 0f;
+            velocity.x = 0f;
         }
 
         rb.velocity = velocity;
+    }
+
+
+    // ===== 턴제 연결을 위한 추가 함수 =====
+    void OnMovementStateChanged(bool canMoveState)
+    {
+        canMove = canMoveState;
+
+        // 움직임이 차단될 때 입력 초기화
+        if (!canMove)
+        {
+            moveInput = 0;
+            lookInput = 0;
+
+            // 애니메이션도 정지
+            if (animator != null)
+                animator.SetBool("isWalking", false);
+        }
+
+        Debug.Log($"CatController: 움직임 상태 변경 - {canMove}");
     }
 
     bool IsGrounded()
@@ -114,5 +164,11 @@ public class CatController : MonoBehaviour
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
         }
+    }
+
+    // ===== 이벤트 구독 해제 =====
+    void OnDestroy()
+    {
+        TurnManager.OnPlayerMovementChanged -= OnMovementStateChanged;
     }
 }

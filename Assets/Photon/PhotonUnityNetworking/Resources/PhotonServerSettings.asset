@@ -43,6 +43,9 @@ MonoBehaviour:
   - ReceiveChatMessage
   - SyncBotAdded
   - SyncBotRemoved
+  - RequestBotInfo
+  - SetPlayerMovementState
+  - SyncPlayerColor
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

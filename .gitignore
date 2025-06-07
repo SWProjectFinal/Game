@@ -83,6 +83,7 @@ crashlytics-build.properties
 /[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Flow/UnitOptions.db.meta
 /[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers
 /[Aa]ssets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
-
-# ========== Ãß°¡: Å×½ºÆ® ºôµå ¼¼ÆÃ Æú´õ ¹«½Ã ==========
-Å×½ºÆ®(ºôµå ¼¼ÆÃ)/
+# ========== ì¶”ê°€: í…ŒìŠ¤íŠ¸ ë¹Œë“œ ì„¸íŒ… í´ë” ë¬´ì‹œ ==========
+í…ŒìŠ¤íŠ¸(ë¹Œë“œ ì„¸íŒ…)/
+.vscode/
+settings.json
