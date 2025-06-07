@@ -309,29 +309,20 @@ public class ItemSpawner : MonoBehaviourPun
 
         // ✅ spawnedBoxes 리스트에서 해당 위치의 박스 찾기
         Vector3 itemPosition = new Vector3(posX, posY, posZ);
-        GameObject boxToRemove = null;
+        GameObject boxToRemove = FindBoxByPosition(itemPosition);
 
-        foreach (GameObject box in spawnedBoxes.ToArray()) // ToArray()로 안전하게 순회
-        {
-            if (box != null && Vector3.Distance(box.transform.position, itemPosition) < 0.5f)
-            {
-                // 같은 위치의 박스 찾음
-                Debug.Log($"🎁 [RPC] 위치 매칭된 박스 발견: {box.name}");
-
-                DummyItemBox dummyBox = box.GetComponent<DummyItemBox>();
-                if (dummyBox != null)
-                {
-                    dummyBox.PlayPickupEffect();
-                }
-
-                boxToRemove = box;
-                break;
-            }
-        }
-
-        // 찾은 박스 삭제
         if (boxToRemove != null)
         {
+            Debug.Log($"🎁 [RPC] 위치 매칭된 박스 발견: {boxToRemove.name}");
+
+            // 이펙트 재생 (아직 안 했다면)
+            DummyItemBox dummyBox = boxToRemove.GetComponent<DummyItemBox>();
+            if (dummyBox != null)
+            {
+                dummyBox.PlayPickupEffect();
+            }
+
+            // 박스 제거
             RemoveBoxFromList(boxToRemove);
             Destroy(boxToRemove);
             Debug.Log($"🎁 [RPC] 박스 삭제 완료: {boxToRemove.name}");
@@ -339,6 +330,30 @@ public class ItemSpawner : MonoBehaviourPun
         else
         {
             Debug.LogWarning($"🎁 [RPC] 해당 위치의 박스를 찾지 못했습니다: ({posX:F2}, {posY:F2}, {posZ:F2})");
+
+            // ✅ 백업: 모든 박스 중에서 가장 가까운 것 찾기
+            GameObject closestBox = null;
+            float closestDistance = float.MaxValue;
+
+            foreach (GameObject box in spawnedBoxes.ToArray())
+            {
+                if (box != null)
+                {
+                    float distance = Vector3.Distance(box.transform.position, itemPosition);
+                    if (distance < closestDistance && distance < 2f) // 2미터 이내
+                    {
+                        closestDistance = distance;
+                        closestBox = box;
+                    }
+                }
+            }
+
+            if (closestBox != null)
+            {
+                Debug.Log($"🎁 [RPC] 가장 가까운 박스 찾음: {closestBox.name} (거리: {closestDistance:F2}m)");
+                RemoveBoxFromList(closestBox);
+                Destroy(closestBox);
+            }
         }
 
         // 여기서 추후 인벤토리 시스템과 연결 가능
@@ -408,4 +423,47 @@ public class ItemSpawner : MonoBehaviourPun
             TurnManager.Instance.OnTurnStart -= OnTurnStarted;
         }
     }
+
+    // ✅ 새로 추가: 아이템 습득 요청 RPC (모든 클라이언트에서 호출 가능)
+    [PunRPC]
+    void RPC_RequestItemPickup(string playerName, string itemName, float posX, float posY, float posZ, int gameObjectId)
+    {
+        // 마스터 클라이언트에서만 처리
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        Debug.Log($"🎁 [Master] 아이템 습득 요청 받음: {playerName} - {itemName}");
+
+        // 실제 아이템 습득 처리
+        Vector3 itemPosition = new Vector3(posX, posY, posZ);
+
+        // 모든 클라이언트에 아이템 습득 알림
+        photonView.RPC("RPC_ItemPickedUp", RpcTarget.All, playerName, itemName, posX, posY, posZ);
+
+        // 해당 위치의 박스 찾아서 제거
+        GameObject boxToRemove = FindBoxByPosition(itemPosition);
+        if (boxToRemove != null)
+        {
+            RemoveBoxFromList(boxToRemove);
+            Destroy(boxToRemove);
+            Debug.Log($"🎁 [Master] 박스 삭제 완료: {boxToRemove.name}");
+        }
+        else
+        {
+            Debug.LogWarning($"🎁 [Master] 해당 위치의 박스를 찾지 못함: {itemPosition}");
+        }
+    }
+
+    // ✅ 새로 추가: 위치로 박스 찾기
+    GameObject FindBoxByPosition(Vector3 position)
+    {
+        foreach (GameObject box in spawnedBoxes.ToArray())
+        {
+            if (box != null && Vector3.Distance(box.transform.position, position) < 0.5f)
+            {
+                return box;
+            }
+        }
+        return null;
+    }
+
 }

@@ -52,6 +52,16 @@ MonoBehaviour:
   - SyncGameData
   - SyncGameStart
   - SyncTurnStart
+  - PrepareReturnToRoom
+  - RPC_HealPlayer
+  - RPC_TakeDamage
+  - SyncGameEnd
+  - SyncHealthChange
+  - SyncPlayerDeath
+  - ApplyDamage
+  - ApplyFallDeath
+  - ApplyHeal
+  - RPC_RequestItemPickup
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

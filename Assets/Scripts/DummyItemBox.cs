@@ -49,18 +49,41 @@ public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
 
       Debug.Log($"🎁 {other.name}이 아이템 습득: {itemName}");
 
-      // ✅ ItemSpawner를 통해 네트워크 동기화
+      // ✅ 수정: 마스터 클라이언트에게 RPC로 요청
+      string playerName = GetPlayerName(other);
+      Vector3 boxPosition = transform.position;
+
+      // 모든 클라이언트에서 즉시 이펙트 재생
+      PlayPickupEffect();
+
       if (ItemSpawner.Instance != null)
       {
-        ItemSpawner.Instance.OnItemPickedUp(gameObject, other.name, itemName);
+        // 마스터 클라이언트에게 아이템 습득 알림
+        ItemSpawner.Instance.photonView.RPC("RPC_RequestItemPickup", RpcTarget.MasterClient,
+            playerName, itemName, boxPosition.x, boxPosition.y, boxPosition.z, gameObject.GetInstanceID());
       }
       else
       {
-        // 백업: ItemSpawner가 없으면 로컬에서만 처리
-        Debug.LogWarning("ItemSpawner.Instance가 null입니다! 로컬 처리만 됩니다.");
-        PlayPickupEffect();
-        Destroy(gameObject);
+        Debug.LogWarning("ItemSpawner.Instance가 null입니다!");
       }
+
+      // ✅ 일단 로컬에서 박스 비활성화 (시각적 피드백)
+      gameObject.SetActive(false);
+    }
+  }
+
+  // ✅ 새로 추가: 플레이어 이름 가져오기
+  string GetPlayerName(Collider2D playerCollider)
+  {
+    PhotonView pv = playerCollider.GetComponent<PhotonView>();
+    if (pv != null && pv.Owner != null)
+    {
+      return pv.Owner.NickName;
+    }
+    else
+    {
+      // 봇인 경우
+      return playerCollider.gameObject.name;
     }
   }
 

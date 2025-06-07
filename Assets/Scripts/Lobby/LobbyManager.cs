@@ -193,11 +193,36 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             gameObject.SetActive(false);
             return;
         }
+        // ✅ 게임에서 돌아왔는지 확인 (새로 추가!)
+        bool returnFromGame = CheckReturnFromGame();
 
-        loginPanel.SetActive(true);
-        roomListPanel.SetActive(false);
-        createRoomPanel.SetActive(false);
-        roomPanel.SetActive(false);
+        if (returnFromGame)
+        {
+            Debug.Log("🎮 게임에서 돌아옴 - RoomPanel 활성화");
+            // 게임에서 돌아온 경우: 바로 방 화면으로
+            loginPanel.SetActive(false);
+            roomListPanel.SetActive(false);
+            createRoomPanel.SetActive(false);
+            roomPanel.SetActive(true);  // ← 방 화면 활성화!
+
+            // 채팅 패널 활성화
+            if (chatPanel) chatPanel.SetActive(true);
+
+            // 방 UI 업데이트
+            StartCoroutine(UpdateRoomUIAfterReturn());
+        }
+        else
+        {
+            Debug.Log("🔐 일반 로비 진입 - LoginPanel 활성화");
+            // 일반 진입: 로그인 화면부터
+            loginPanel.SetActive(true);
+            roomListPanel.SetActive(false);
+            createRoomPanel.SetActive(false);
+            roomPanel.SetActive(false);
+
+            // 채팅 패널 비활성화
+            if (chatPanel) chatPanel.SetActive(false);
+        }
 
         if (loginLoadingUI) loginLoadingUI.SetActive(false);
         if (roomListLoadingUI) roomListLoadingUI.SetActive(false);
@@ -2263,7 +2288,115 @@ public class LobbyManager : MonoBehaviourPun, IConnectionCallbacks, IMatchmaking
             }
         }
     }
+    // ✅ 새로 추가: 게임에서 돌아왔는지 확인
+    bool CheckReturnFromGame()
+    {
+        // 방법 1: PlayerPrefs 플래그 확인
+        bool returnFlag = PlayerPrefs.GetInt("ReturnFromGame", 0) == 1;
 
+        // 방법 2: 네트워크 상태 확인 (방에 연결되어 있으면 게임에서 돌아온 것)
+        bool inRoom = PhotonNetwork.IsConnected && PhotonNetwork.InRoom;
+
+        // 방법 3: 봇 데이터가 남아있는지 확인
+        bool hasBotData = PlayerPrefs.GetInt("BotCount", 0) > 0;
+
+        Debug.Log($"🔍 게임 복귀 체크: Flag={returnFlag}, InRoom={inRoom}, BotData={hasBotData}");
+
+        // 하나라도 true면 게임에서 돌아온 것으로 판단
+        bool shouldReturnToRoom = returnFlag || inRoom || hasBotData;
+
+        if (shouldReturnToRoom)
+        {
+            // 플래그 초기화 (한 번만 사용)
+            PlayerPrefs.SetInt("ReturnFromGame", 0);
+            PlayerPrefs.Save();
+
+            Debug.Log("✅ 게임에서 돌아온 것으로 확인됨!");
+            return true;
+        }
+
+        Debug.Log("❌ 일반 로비 진입으로 확인됨");
+        return false;
+    }
+
+    // ✅ 새로 추가: 게임에서 돌아온 후 방 UI 업데이트
+    IEnumerator UpdateRoomUIAfterReturn()
+    {
+        // 네트워크 연결이 완전히 준비될 때까지 대기
+        yield return new WaitForSeconds(1f);
+
+        Debug.Log("🔄 게임 복귀 후 방 UI 업데이트 중...");
+
+        if (PhotonNetwork.InRoom && PhotonNetwork.CurrentRoom != null)
+        {
+            // 방 이름 표시
+            if (roomNameText != null)
+            {
+                roomNameText.text = PhotonNetwork.CurrentRoom.Name;
+                Debug.Log($"✅ 방 이름 업데이트: {PhotonNetwork.CurrentRoom.Name}");
+            }
+
+            // 플레이어 목록 업데이트
+            UpdatePlayerList();
+            Debug.Log("✅ 플레이어 목록 업데이트 완료");
+
+            // 봇 UI 업데이트  
+            UpdateBotUI();
+            Debug.Log("✅ 봇 UI 업데이트 완료");
+
+            // 준비 상태 초기화 (게임 후에는 모두 준비 해제)
+            ResetAllPlayerReadyStates();
+            Debug.Log("✅ 준비 상태 초기화 완료");
+
+            // 게임 시작 조건 업데이트
+            UpdateGameStartCondition();
+            Debug.Log("✅ 게임 시작 조건 업데이트 완료");
+
+            // 채팅에 복귀 메시지 표시
+            DisplaySystemMessage("🎮 게임이 종료되었습니다. 다시 게임을 시작할 수 있습니다!");
+
+            ShowNotification("방으로 돌아왔습니다! 🏠", NotificationType.Success);
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ 방에 연결되어 있지 않음! 로그인 화면으로 이동...");
+
+            // 방에 연결되어 있지 않으면 로그인 화면으로
+            loginPanel.SetActive(true);
+            roomPanel.SetActive(false);
+            if (chatPanel) chatPanel.SetActive(false);
+        }
+    }
+
+    // ✅ 새로 추가: 모든 플레이어 준비 상태 초기화
+    void ResetAllPlayerReadyStates()
+    {
+        playerReadyStates.Clear();
+
+        foreach (Player player in PhotonNetwork.PlayerList)
+        {
+            // 방장은 자동으로 준비 완료, 다른 플레이어는 준비 안됨
+            bool isReady = player.IsMasterClient;
+            playerReadyStates[player.NickName] = isReady;
+
+            // 자신이 방장이면 준비 상태를 서버에도 전송
+            if (player.IsMasterClient && PhotonNetwork.LocalPlayer == player)
+            {
+                ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable();
+                props["ready"] = true;
+                PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+            }
+            else if (PhotonNetwork.LocalPlayer == player)
+            {
+                // 자신이 일반 플레이어면 준비 해제
+                ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable();
+                props["ready"] = false;
+                PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+            }
+        }
+
+        Debug.Log($"🔄 준비 상태 초기화: {playerReadyStates.Count}명");
+    }
     #endregion
 
     void OnEnable()

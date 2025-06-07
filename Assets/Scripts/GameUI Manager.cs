@@ -31,14 +31,21 @@ public class GameUIManager : MonoBehaviourPun
     public Button chatSendButton;
     public GameObject chatMessagePrefab;
 
-    [Header("=== 게임 상태 ===")]
+    [Header("=== 게임 종료 패널 ===")]
     public GameObject gameOverPanel;
     public Text winnerText;
-    public Button backToLobbyButton;
+    public Button returnToRoomButton; // ← 이름 변경
+    public Text returnButtonText; // ← 버튼 텍스트 (설정 가능)
+
+    [Header("=== 게임 종료 이펙트 ===")]
+    public GameObject winnerCrown; // 승자 왕관 이미지 (선택사항)
+    public AudioClip victorySound; // 승리 사운드
+    public Color winnerTextColor = new Color(1f, 0.84f, 0f); // 승자 텍스트 색상 (금색)
 
     [Header("=== UI 스타일 ===")]
     public Color activePlayerColor = Color.green;
     public Color inactivePlayerColor = Color.gray;
+    public Color deadPlayerColor = Color.red; // ← 사망 플레이어 색상 추가
     public Color panelBackgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.8f);
 
     // 개선된 플레이어 상태 아이템 클래스
@@ -49,14 +56,19 @@ public class GameUIManager : MonoBehaviourPun
         public Text nameText;                   // 플레이어 이름 (색상 적용됨)
         public Image indicatorDot;              // 왼쪽 차례 표시 점
         public Image backgroundImage;           // 배경 이미지
-        public Slider healthBar;                // 체력바 (추가)
+        public Slider healthBar;                // 체력바
+        public Image healthFill;                // 체력바 채우기 (색상 변경용)
         public string playerName;
         public bool isBot;
         public bool isActive;
+        public bool isAlive = true;             // ← 생존 상태 추가
         public Color playerColor;               // 플레이어 색상 저장
 
         public void SetActive(bool active)
         {
+            // 사망한 플레이어는 활성화되지 않음
+            if (!isAlive) active = false;
+
             // 차례 표시 점
             if (indicatorDot != null)
             {
@@ -70,8 +82,14 @@ public class GameUIManager : MonoBehaviourPun
                 nameText.fontStyle = active ? FontStyle.Bold : FontStyle.Normal;
                 nameText.fontSize = active ? 18 : 16;
 
-                // 현재 차례일 때 색상 더 밝게, 아닐 때 어둡게
-                if (active)
+                // 생존 상태에 따른 색상 변경
+                if (!isAlive)
+                {
+                    // 사망 시 회색 + 취소선
+                    nameText.color = GameUIManager.Instance.deadPlayerColor;
+                    nameText.text = nameText.text.Contains("💀") ? nameText.text : "💀 " + nameText.text;
+                }
+                else if (active)
                 {
                     nameText.color = playerColor; // 선택한 색상 그대로
                 }
@@ -85,7 +103,12 @@ public class GameUIManager : MonoBehaviourPun
             // 배경 강조
             if (backgroundImage != null)
             {
-                if (active)
+                if (!isAlive)
+                {
+                    // 사망 시 어두운 배경
+                    backgroundImage.color = new Color(0.3f, 0.1f, 0.1f, 0.6f);
+                }
+                else if (active)
                 {
                     // 현재 차례일 때 플레이어 색상으로 배경 약간 변경
                     Color bgColor = new Color(playerColor.r, playerColor.g, playerColor.b, 0.3f);
@@ -114,17 +137,42 @@ public class GameUIManager : MonoBehaviourPun
                 healthBar.value = healthPercentage;
 
                 // 체력에 따른 색상 변경
-                Image fillImage = healthBar.fillRect?.GetComponent<Image>();
-                if (fillImage != null)
+                if (healthFill == null && healthBar.fillRect != null)
+                {
+                    healthFill = healthBar.fillRect.GetComponent<Image>();
+                }
+
+                if (healthFill != null)
                 {
                     if (healthPercentage > 70f)
-                        fillImage.color = Color.green;
+                        healthFill.color = Color.green;
                     else if (healthPercentage > 30f)
-                        fillImage.color = Color.yellow;
+                        healthFill.color = Color.yellow;
                     else
-                        fillImage.color = Color.red;
+                        healthFill.color = Color.red;
                 }
             }
+        }
+
+        // ← 사망 상태 설정 추가
+        public void SetDead(bool isDead)
+        {
+            isAlive = !isDead;
+
+            if (isDead)
+            {
+                // 체력바를 0으로
+                UpdateHealth(0f);
+
+                // 이름 앞에 해골 추가
+                if (nameText != null && !nameText.text.Contains("💀"))
+                {
+                    nameText.text = "💀 " + nameText.text;
+                }
+            }
+
+            // UI 업데이트
+            SetActive(false); // 사망 시 비활성화
         }
     }
 
@@ -150,6 +198,7 @@ public class GameUIManager : MonoBehaviourPun
     {
         InitializeUI();
         ConnectToTurnManager();
+        ConnectToGameManager(); // ← GameManager 연동 추가
     }
 
     void InitializeUI()
@@ -157,8 +206,20 @@ public class GameUIManager : MonoBehaviourPun
         SetupPanels();
         SetupChatSystem();
 
-        if (backToLobbyButton)
-            backToLobbyButton.onClick.AddListener(OnBackToLobbyClicked);
+        // ← 버튼 이벤트 수정
+        if (returnToRoomButton)
+        {
+            returnToRoomButton.onClick.AddListener(OnReturnToRoomClicked);
+
+            // 버튼 텍스트 설정
+            if (returnButtonText)
+                returnButtonText.text = "방으로 돌아가기";
+            else
+            {
+                Text btnText = returnToRoomButton.GetComponentInChildren<Text>();
+                if (btnText) btnText.text = "방으로 돌아가기";
+            }
+        }
 
         Debug.Log("GameUIManager 초기화 완료!");
     }
@@ -222,6 +283,29 @@ public class GameUIManager : MonoBehaviourPun
         {
             StartCoroutine(WaitForTurnManager());
         }
+    }
+
+    // ← GameManager 연동 추가
+    void ConnectToGameManager()
+    {
+        if (GameManager.Instance != null)
+        {
+            GameManager.OnGameEnded += OnGameEnded;
+            GameManager.OnPlayersUpdated += OnPlayersUpdated;
+        }
+        else
+        {
+            StartCoroutine(WaitForGameManager());
+        }
+    }
+
+    IEnumerator WaitForGameManager()
+    {
+        while (GameManager.Instance == null)
+        {
+            yield return new WaitForSeconds(0.5f);
+        }
+        ConnectToGameManager();
     }
 
     IEnumerator WaitForTurnManager()
@@ -290,6 +374,7 @@ public class GameUIManager : MonoBehaviourPun
         // 플레이어 정보 업데이트
         statusItem.playerName = playerName;
         statusItem.isBot = isBot;
+        statusItem.isAlive = true; // ← 초기화 시 모두 생존
         statusItem.playerColor = GetPlayerColor(playerName, isBot);
 
         // UI 업데이트
@@ -449,7 +534,7 @@ public class GameUIManager : MonoBehaviourPun
         }
     }
 
-    // === 체력 업데이트 (친구1과 연결용) ===
+    // === 체력 업데이트 (PlayerHealth에서 호출) ===
     public void UpdatePlayerHealth(string playerName, float healthPercentage)
     {
         for (int i = 0; i < playerStatusItems.Length; i++)
@@ -459,10 +544,31 @@ public class GameUIManager : MonoBehaviourPun
                 playerStatusItems[i].playerName == playerName)
             {
                 playerStatusItems[i].UpdateHealth(healthPercentage);
+
+                // ← 사망 처리 추가
+                if (healthPercentage <= 0f)
+                {
+                    playerStatusItems[i].SetDead(true);
+                    Debug.Log($"💀 {playerName} UI에서 사망 처리 완료");
+                }
+
                 Debug.Log($"{playerName} 체력 업데이트: {healthPercentage}%");
                 break;
             }
         }
+    }
+
+    // ← GameManager 이벤트 처리 추가
+    void OnGameEnded(string winner)
+    {
+        Debug.Log($"🏆 GameUIManager: 게임 종료 - 승자: {winner}");
+        // ShowGameOver는 GameManager에서 딜레이 후 호출됨
+    }
+
+    void OnPlayersUpdated(List<string> alivePlayers)
+    {
+        Debug.Log($"👥 생존자 업데이트: {alivePlayers.Count}명");
+        // 필요시 추가 UI 업데이트
     }
 
     // === 채팅 시스템 ===
@@ -535,30 +641,115 @@ public class GameUIManager : MonoBehaviourPun
         }
     }
 
-    // === 게임 종료 ===
+    // === 게임 종료 UI ===
 
     public void ShowGameOver(string winnerName)
     {
-        if (gameOverPanel) gameOverPanel.SetActive(true);
-        if (winnerText) winnerText.text = $"🏆 {winnerName} 승리!";
+        if (gameOverPanel)
+        {
+            gameOverPanel.SetActive(true);
+
+            // ← 승리 이펙트 추가
+            PlayVictoryEffects();
+        }
+
+        if (winnerText)
+        {
+            winnerText.text = $"🏆 {winnerName} 승리!";
+            winnerText.color = winnerTextColor;
+
+            // 승자 텍스트 크기 애니메이션 (선택사항)
+            StartCoroutine(AnimateWinnerText());
+        }
+
         isTimerActive = false;
+
+        Debug.Log($"📊 게임 종료 UI 표시: {winnerName} 승리!");
     }
 
-    void OnBackToLobbyClicked()
+    // ← 승리 이펙트 재생
+    void PlayVictoryEffects()
     {
-        if (PhotonNetwork.IsMasterClient)
+        // 승리 사운드 재생
+        if (victorySound != null)
         {
-            PhotonNetwork.LoadLevel("LobbyScene");
+            AudioSource.PlayClipAtPoint(victorySound, Camera.main.transform.position);
+        }
+
+        // 왕관 이미지 표시 (선택사항)
+        if (winnerCrown != null)
+        {
+            winnerCrown.SetActive(true);
+        }
+    }
+
+    // ← 승자 텍스트 애니메이션
+    IEnumerator AnimateWinnerText()
+    {
+        if (winnerText == null) yield break;
+
+        Vector3 originalScale = winnerText.transform.localScale;
+
+        // 커지는 애니메이션
+        float time = 0f;
+        while (time < 0.5f)
+        {
+            time += Time.deltaTime;
+            float scale = Mathf.Lerp(1f, 1.2f, time / 0.5f);
+            winnerText.transform.localScale = originalScale * scale;
+            yield return null;
+        }
+
+        // 원래 크기로 돌아가기
+        time = 0f;
+        while (time < 0.3f)
+        {
+            time += Time.deltaTime;
+            float scale = Mathf.Lerp(1.2f, 1f, time / 0.3f);
+            winnerText.transform.localScale = originalScale * scale;
+            yield return null;
+        }
+
+        winnerText.transform.localScale = originalScale;
+    }
+
+    // ← 방으로 돌아가기 버튼 클릭
+    void OnReturnToRoomClicked()
+    {
+        Debug.Log("🚪 방으로 돌아가기 버튼 클릭!");
+
+        // GameManager에 방 복귀 요청
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.ReturnToRoom();
+        }
+        else
+        {
+            Debug.LogError("GameManager.Instance가 null입니다!");
+
+            // 백업: 직접 방으로 돌아가기
+            if (PhotonNetwork.IsMasterClient)
+            {
+                PhotonNetwork.LoadLevel("LobbyScene");
+            }
         }
     }
 
     void OnDestroy()
     {
+        // TurnManager 이벤트 구독 해제
         if (TurnManager.Instance != null)
         {
             TurnManager.Instance.OnTurnStart -= OnTurnStarted;
             TurnManager.Instance.OnTurnEnd -= OnTurnEnded;
             TurnManager.Instance.OnTurnTimeUpdate -= OnTurnTimeUpdated;
+        }
+
+        // ← GameManager 이벤트 구독 해제
+        if (GameManager.Instance != null)
+        {
+            GameManager.OnGameEnded -= OnGameEnded;
+            GameManager.OnPlayersUpdated -= OnPlayersUpdated;
         }
     }
 }

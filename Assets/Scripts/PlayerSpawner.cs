@@ -183,7 +183,8 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     Debug.Log("모든 플레이어 충돌 설정 새로고침 완료");
   }
 
-  void ApplyPlayerColorFromLobby(GameObject playerObj)
+  // ✅ public으로 변경! (오류 수정)
+  public void ApplyPlayerColorFromLobby(GameObject playerObj)
   {
     if (playerObj == null) return;
 

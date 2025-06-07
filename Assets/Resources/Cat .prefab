@@ -118,6 +118,7 @@ GameObject:
   - component: {fileID: 4017100912337952190}
   - component: {fileID: 2959003591353595129}
   - component: {fileID: 8401289812595028819}
+  - component: {fileID: 2770021353534890448}
   m_Layer: 0
   m_Name: 'Cat '
   m_TagString: Player
@@ -246,6 +247,8 @@ MonoBehaviour:
   headPivot: {fileID: 0}
   lookAngleSpeed: 60
   fallLimitY: -10
+  fallWarningY: -10
+  showFallWarning: 1
   groundCheck: {fileID: 4226017612679418862}
   groundCheckRadius: 0.05
   groundLayer:
@@ -339,6 +342,25 @@ MonoBehaviour:
   m_SynchronizeRotation: 1
   m_SynchronizeScale: 0
   m_UseLocal: 1
+--- !u!114 &2770021353534890448
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6160795662189038639}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ba7058b34400f740a29300c234ea293, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 100
+  currentHealth: 100
+  fallDeathY: -15
+  deathEffect: {fileID: 0}
+  deathSound: {fileID: 0}
+  damageEffect: {fileID: 0}
+  damageSound: {fileID: 0}
 --- !u!1 &7080203956709612872
 GameObject:
   m_ObjectHideFlags: 0
