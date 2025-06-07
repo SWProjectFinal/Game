@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f6f8f5c0d1ded14d96eb31c81fada38, type: 3}
+  m_Name: DefaultItemDropTable
+  m_EditorClassIdentifier: 
+  itemDrops:
+  - itemName: "\uBE14\uB799\uD640"
+    weaponType: 1
+    dropChance: 20
+    rarity: 1
+    description: "\uAC15\uB825\uD55C \uD761\uC785\uB825\uC744 \uAC00\uC9C4 \uBE14\uB799\uD640"
+    rarityColor: {r: 0, g: 0, b: 1, a: 1}
+  - itemName: RPG
+    weaponType: 2
+    dropChance: 25
+    rarity: 0
+    description: "\uD3ED\uBC1C\uB825\uC774 \uAC15\uD55C \uB85C\uCF13 \uB7F0\uCC98"
+    rarityColor: {r: 0, g: 1, b: 0, a: 1}
+  - itemName: "\uD654\uC5FC\uBCD1"
+    weaponType: 3
+    dropChance: 25
+    rarity: 0
+    description: "\uC9C0\uC18D \uD654\uC5FC \uB370\uBBF8\uC9C0"
+    rarityColor: {r: 1, g: 0, b: 0, a: 1}
+  - itemName: "\uCE74\uD3AB \uD3ED\uD0C4"
+    weaponType: 4
+    dropChance: 20
+    rarity: 1
+    description: "\uAD11\uBC94\uC704 \uD3ED\uACA9"
+    rarityColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  - itemName: "\uC5D0\uB108\uC9C0 \uC6E8\uC774\uBE0C"
+    weaponType: 5
+    dropChance: 8
+    rarity: 2
+    description: "\uAD00\uD1B5\uD615 \uC5D0\uB108\uC9C0 \uBE54"
+    rarityColor: {r: 1, g: 0, b: 1, a: 1}
+  - itemName: "\uD68C\uBCF5 \uC544\uC774\uD15C"
+    weaponType: 6
+    dropChance: 2
+    rarity: 3
+    description: "\uC989\uC2DC \uCCB4\uB825 \uD68C\uBCF5"
+    rarityColor: {r: 0, g: 1, b: 1, a: 1}
+  totalPercentage: 100
