@@ -19,9 +19,9 @@ MonoBehaviour:
   range: 10
   cooldown: 1
   bulletSpeed: 1.5
-  explosionEffectPrefab: {fileID: 0}
+  explosionEffectPrefab: {fileID: 7135395293779586346, guid: 1ccdead3ec2f5254da0119319f9f374a, type: 3}
   fireSound: {fileID: 0}
-  explosionRadius: 3
+  explosionRadius: 50
   explosionForce: 20
   isInstantUse: 0
   useGravity: 1

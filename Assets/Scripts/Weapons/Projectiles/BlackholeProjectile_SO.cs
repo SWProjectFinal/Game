@@ -40,11 +40,22 @@ public class BlackholeProjectile_SO : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        if (blackholePrefab != null)
+        if (collision.collider.CompareTag("Ground"))
         {
-            Instantiate(blackholePrefab, transform.position, Quaternion.identity);
+            // 블랙홀 생성
+            if (blackholePrefab != null)
+            {
+                Instantiate(blackholePrefab, transform.position, Quaternion.identity);
+            }
+
+            // 시각 이펙트 (옵션)
+            if (weaponData.explosionEffectPrefab != null)
+            {
+                Instantiate(weaponData.explosionEffectPrefab, transform.position, Quaternion.identity);
+            }
         }
 
-        Destroy(gameObject);
+        Destroy(gameObject); // 총알 제거
     }
+
 }
