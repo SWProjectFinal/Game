@@ -20,6 +20,14 @@ public class RPGProjectile_SO : MonoBehaviour
             float finalPower = Mathf.Max(0.1f, power);
             rb.velocity = transform.right.normalized * weaponData.bulletSpeed * finalPower;
         }
+
+        // 🔽 SpriteRenderer 설정
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            sr.sortingLayerName = "Projectile";
+            sr.sortingOrder = 5;
+        }
     }
 
     void FixedUpdate()

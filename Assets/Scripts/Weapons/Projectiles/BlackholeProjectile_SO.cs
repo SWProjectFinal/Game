@@ -18,15 +18,21 @@ public class BlackholeProjectile_SO : MonoBehaviour
         if (rb != null && weaponData != null)
         {
             rb.gravityScale = weaponData.useGravity ? 1f : 0f;
-
-            // ✅ 최소 파워 보정
             float finalPower = Mathf.Max(0.1f, power);
-
             rb.velocity = transform.right.normalized * weaponData.bulletSpeed * finalPower;
 
             Debug.Log($"🌀 블랙홀 발사! power: {power}, bulletSpeed: {weaponData.bulletSpeed}");
         }
+
+        // 🔽 SpriteRenderer 설정
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            sr.sortingLayerName = "Projectile";
+            sr.sortingOrder = 5;
+        }
     }
+
 
 
     void FixedUpdate()

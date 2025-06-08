@@ -40,8 +40,8 @@ public class WeaponManager : MonoBehaviourPunCallbacks
     {
         if (Instance == null) Instance = this;
 
-        PhotonNetwork.Disconnect();
-        PhotonNetwork.OfflineMode = true;
+        //PhotonNetwork.Disconnect();
+        //PhotonNetwork.OfflineMode = true;
 
         Debug.Log("🔥 WeaponManager Awake");
     }
@@ -142,6 +142,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
             Vector2 dir = firePoint != null ? firePoint.right.normalized : Vector2.right;
             FireWeapon(dir, chargePower);
+
         }
     }
 
@@ -217,6 +218,12 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
         Vector3 spawn = firePoint != null ? firePoint.position : transform.position;
         GameObject bullet = Instantiate(weapon.projectilePrefab, spawn, Quaternion.identity);
+        SpriteRenderer sr = bullet.GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            sr.sortingLayerName = "Projectile";
+            sr.sortingOrder = 5;  // 숫자가 높을수록 위에 표시됨
+        }
         Rigidbody2D rb = bullet.GetComponent<Rigidbody2D>();
         if (rb != null)
         {
