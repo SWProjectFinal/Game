@@ -41,6 +41,7 @@ public class StandardProjectile : MonoBehaviour
             GameObject fx = Instantiate(weaponData.explosionEffectPrefab, transform.position, Quaternion.identity);
             float scaleFactor = weaponData.explosionRadius / 30f;
             fx.transform.localScale = Vector3.one * scaleFactor;
+            Destroy(fx, 2f);
         }
 
 

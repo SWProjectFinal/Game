@@ -150,6 +150,7 @@ public class Blackhole : MonoBehaviour
         {
             GameObject fx = Instantiate(suctionEffectPrefab, transform.position, Quaternion.identity);
             fx.transform.SetParent(transform);
+            Destroy(fx, duration);
         }
     }
 
