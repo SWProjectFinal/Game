@@ -245,5 +245,10 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         if (w == null) Debug.LogError($"❌ 무기 {type} 못 찾음!");
         return w;
     }
+
+    public void SetFirePoint(Transform newFirePoint)
+    {
+        firePoint = newFirePoint;
+    }
 }
 

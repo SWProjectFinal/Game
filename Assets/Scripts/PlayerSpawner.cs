@@ -12,7 +12,7 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
   [Header("스폰 설정")]
   public GameObject catPrefab; // Cat Prefab 할당
   public Transform[] spawnPoints; // 스폰 위치들
-  public float spawnHeight = 0f; // 스폰 높이
+  public float spawnHeight = -10f; // 스폰 높이
   public Vector2 mapBounds = new Vector2(8.8f, 5f); // 맵 크기 (랜덤 스폰용)
 
   [Header("스폰된 오브젝트 관리")]
@@ -542,8 +542,24 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
       }
     }
 
+
+
     // 맵 경계 시각화
     Gizmos.color = Color.yellow;
     Gizmos.DrawWireCube(Vector3.zero, new Vector3(mapBounds.x * 2, 1, mapBounds.y * 2));
   }
+
+  // PlayerSpawner.cs
+
+  public GameObject GetPlayerObject(string nickname)
+  {
+    foreach (GameObject playerObj in spawnedPlayers)
+    {
+      PhotonView pv = playerObj.GetComponent<PhotonView>();
+      if (pv != null && pv.Owner != null && pv.Owner.NickName == nickname)
+        return playerObj;
+    }
+    return null;
+  }
+
 }
