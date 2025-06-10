@@ -56,5 +56,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "SW_project_final.sln"
+    "dotnet.defaultSolution": "last_dance.sln"
 }

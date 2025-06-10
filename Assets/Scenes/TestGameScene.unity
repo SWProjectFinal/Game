@@ -604,7 +604,7 @@ SpriteRenderer:
   m_SortingLayerID: -343000633
   m_SortingLayer: 1
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: a07e87bf79c75054daecc2be648fb745, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 6b48165b2ed9be944b2f48d28a71edfa, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -624,8 +624,8 @@ Transform:
   m_GameObject: {fileID: 160463849}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.6278456, y: 0.9771901, z: 1}
+  m_LocalPosition: {x: -0.027, y: -0.0128, z: 0}
+  m_LocalScale: {x: 2.771546, y: 2.6946254, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -1090,7 +1090,7 @@ PolygonCollider2D:
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 15.36, y: 10.24}
+    oldSize: {x: 7.2, y: 4.18}
     newSize: {x: 15.36, y: 10.24}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
@@ -1302,6 +1302,7 @@ PolygonCollider2D:
       - {x: 3.675464, y: -1.4563804}
       - {x: 3.3697844, y: -1.4486593}
       - {x: 3.0471199, y: -1.3228235}
+      - {x: 2.814555, y: -1.0106213}
       - {x: 2.225335, y: -0.21963477}
       - {x: 1.9335788, y: 0.046028007}
       - {x: 1.779941, y: 0.13136286}
@@ -1381,7 +1382,7 @@ SpriteRenderer:
   m_SortingLayerID: -378412401
   m_SortingLayer: 2
   m_SortingOrder: 0
-  m_Sprite: {fileID: 21300000, guid: da589c3120cb65b43879772bc28aff96, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 6d19258329e35c5469b0b3a6721b4588, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -1401,8 +1402,8 @@ Transform:
   m_GameObject: {fileID: 424767925}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -5}
-  m_LocalScale: {x: 1.6264347, y: 0.9796961, z: 1}
+  m_LocalPosition: {x: 0.0276, y: -2.4772, z: -5}
+  m_LocalScale: {x: 2.786475, y: 1.8456982, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -3505,7 +3506,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1459834705}
   m_HandleRect: {fileID: 1459834704}
   m_Direction: 2
-  m_Value: 1
+  m_Value: 0
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
