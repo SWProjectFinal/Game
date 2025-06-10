@@ -1047,7 +1047,6 @@ GameObject:
   - component: {fileID: 424767928}
   - component: {fileID: 424767927}
   - component: {fileID: 424767926}
-  - component: {fileID: 424767929}
   m_Layer: 9
   m_Name: Map
   m_TagString: Ground
@@ -1239,20 +1238,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &424767929
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 424767925}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 063e6152bd6aa34489758cd2e3aa01f4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetCollider: {fileID: 424767926}
-  scaleFactor: 0.5
 --- !u!1 &496096633
 GameObject:
   m_ObjectHideFlags: 0

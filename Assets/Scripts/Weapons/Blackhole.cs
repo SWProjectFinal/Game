@@ -212,7 +212,7 @@ public class Blackhole : MonoBehaviour
 
     void DeletePixelsInRing(float innerRadius, float outerRadius)
     {
-        float scale = groundRenderer.sprite.pixelsPerUnit * 0.08f;
+        float scale = groundRenderer.sprite.pixelsPerUnit * 0.04f;
         int inner = Mathf.RoundToInt(innerRadius * scale);
         int outer = Mathf.RoundToInt(outerRadius * scale);
         int cx = Mathf.RoundToInt(blackholePixelPos.x);
