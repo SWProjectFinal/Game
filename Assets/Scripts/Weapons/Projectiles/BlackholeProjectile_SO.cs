@@ -4,6 +4,7 @@ public class BlackholeProjectile_SO : MonoBehaviour
 {
     public WeaponData_SO weaponData;
     public float power = 1f;
+    public Vector2 shootDirection = Vector2.right;
 
     public GameObject blackholePrefab;
     private Rigidbody2D rb;
@@ -15,16 +16,22 @@ public class BlackholeProjectile_SO : MonoBehaviour
 
     void Start()
     {
-        if (rb != null && weaponData != null)
+        if (rb == null)
         {
-            rb.gravityScale = weaponData.useGravity ? 1f : 0f;
-            float finalPower = Mathf.Max(0.1f, power);
-            rb.velocity = transform.right.normalized * weaponData.bulletSpeed * finalPower;
-
-            Debug.Log($"🌀 블랙홀 발사! power: {power}, bulletSpeed: {weaponData.bulletSpeed}");
+            Debug.LogWarning("❌ Rigidbody2D 누락됨");
+            return;
         }
 
-        // 🔽 SpriteRenderer 설정
+        if (weaponData == null)
+        {
+            Debug.LogWarning("❌ weaponData가 null 상태로 블랙홀 생성됨");
+            return;
+        }
+
+        rb.gravityScale = weaponData.useGravity ? 1f : 0f;
+        float finalPower = Mathf.Max(0.1f, power);
+        rb.velocity = shootDirection.normalized * weaponData.bulletSpeed * finalPower; // ✅ 변경
+
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr != null)
         {
@@ -32,6 +39,7 @@ public class BlackholeProjectile_SO : MonoBehaviour
             sr.sortingOrder = 5;
         }
     }
+
 
 
 

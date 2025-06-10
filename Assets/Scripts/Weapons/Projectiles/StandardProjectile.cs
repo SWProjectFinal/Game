@@ -3,10 +3,9 @@ using UnityEngine;
 public class StandardProjectile : MonoBehaviour
 {
     public WeaponData_SO weaponData;
+    public float power = 1f;
+    public Vector2 shootDirection = Vector2.right; // ✅ 추가
     private Rigidbody2D rb;
-
-    public Texture2D holeTexture;
-    public float power = 1f; // WeaponManager에서 넘겨주는 값
 
     void Awake()
     {
@@ -19,10 +18,9 @@ public class StandardProjectile : MonoBehaviour
         {
             rb.gravityScale = weaponData.useGravity ? 1f : 0f;
             float finalPower = Mathf.Max(0.1f, power);
-            rb.velocity = transform.right.normalized * weaponData.bulletSpeed * finalPower;
+            rb.velocity = shootDirection.normalized * weaponData.bulletSpeed * finalPower; // ✅ 변경
         }
 
-        // 🔽 SpriteRenderer 설정
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr != null)
         {
@@ -30,7 +28,6 @@ public class StandardProjectile : MonoBehaviour
             sr.sortingOrder = 5;
         }
     }
-
 
     void FixedUpdate()
     {

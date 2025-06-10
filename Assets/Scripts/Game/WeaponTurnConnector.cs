@@ -35,6 +35,18 @@ public class WeaponTurnConnector : MonoBehaviourPun
         {
             Debug.LogWarning("❌ FirePoint를 자식에서 못 찾음");
         }
+
+        SpriteRenderer sr = playerObj.GetComponentInChildren<SpriteRenderer>();
+        if (sr != null)
+        {
+            WeaponManager.Instance.currentSpriteRenderer = sr;
+            Debug.Log($"🖼️ SpriteRenderer 연결 완료: {currentPlayer.NickName}");
+        }
+        else
+        {
+            Debug.LogWarning("❌ SpriteRenderer를 자식에서 못 찾음");
+        }
+
     }
 
     void OnDestroy()
