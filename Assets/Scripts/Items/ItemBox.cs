@@ -11,10 +11,16 @@ public class ItemBox : MonoBehaviourPunCallbacks
         {
             WeaponType randomItem = GetRandomItem();
             WeaponData newItem = WeaponManager.Instance.GetWeaponByType(randomItem);
+
+            // 탄 수 및 무한 여부 설정
+            newItem.ammoCount = 1;
+            newItem.isInfiniteAmmo = false;
+
             WeaponManager.Instance.AddWeapon(newItem);
             PhotonNetwork.Destroy(gameObject);
         }
     }
+
 
     WeaponType GetRandomItem()
     {

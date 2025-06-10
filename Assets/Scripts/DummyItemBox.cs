@@ -10,8 +10,8 @@ public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
 
   [Header("백업 아이템 목록 (드랍 테이블 없을 때)")]
   public string[] dummyItems = {
-        "블랙홀", "RPG", "화염병", "카펫폭탄", "에너지웨이브", "회복템"
-    }; // ⚠️ 기본무기 제외하고 2~7번만
+    "Blackhole", "RPG"
+  };
 
   [Header("이펙트")]
   public GameObject pickupEffect;

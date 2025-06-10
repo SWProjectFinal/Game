@@ -11,5 +11,8 @@ public class WeaponData
     public GameObject projectilePrefab;
     public float damage;
     public bool isInstantUse;
+
+    public int ammoCount = 1;  // 기본 1회용
+    public bool isInfiniteAmmo = false;  // 기본 무기는 true
 }
 

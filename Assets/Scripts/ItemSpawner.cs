@@ -301,65 +301,6 @@ public class ItemSpawner : MonoBehaviourPun
         Destroy(itemBox);
     }
 
-    // ✅ RPC: 모든 클라이언트에서 아이템 습득 처리 (수정된 버전)
-    [PunRPC]
-    void RPC_ItemPickedUp(string playerName, string itemName, float posX, float posY, float posZ)
-    {
-        Debug.Log($"🎁 [RPC] {playerName}이 아이템 습득: {itemName} 위치: ({posX:F2}, {posY:F2}, {posZ:F2})");
-
-        // ✅ spawnedBoxes 리스트에서 해당 위치의 박스 찾기
-        Vector3 itemPosition = new Vector3(posX, posY, posZ);
-        GameObject boxToRemove = FindBoxByPosition(itemPosition);
-
-        if (boxToRemove != null)
-        {
-            Debug.Log($"🎁 [RPC] 위치 매칭된 박스 발견: {boxToRemove.name}");
-
-            // 이펙트 재생 (아직 안 했다면)
-            DummyItemBox dummyBox = boxToRemove.GetComponent<DummyItemBox>();
-            if (dummyBox != null)
-            {
-                dummyBox.PlayPickupEffect();
-            }
-
-            // 박스 제거
-            RemoveBoxFromList(boxToRemove);
-            Destroy(boxToRemove);
-            Debug.Log($"🎁 [RPC] 박스 삭제 완료: {boxToRemove.name}");
-        }
-        else
-        {
-            Debug.LogWarning($"🎁 [RPC] 해당 위치의 박스를 찾지 못했습니다: ({posX:F2}, {posY:F2}, {posZ:F2})");
-
-            // ✅ 백업: 모든 박스 중에서 가장 가까운 것 찾기
-            GameObject closestBox = null;
-            float closestDistance = float.MaxValue;
-
-            foreach (GameObject box in spawnedBoxes.ToArray())
-            {
-                if (box != null)
-                {
-                    float distance = Vector3.Distance(box.transform.position, itemPosition);
-                    if (distance < closestDistance && distance < 2f) // 2미터 이내
-                    {
-                        closestDistance = distance;
-                        closestBox = box;
-                    }
-                }
-            }
-
-            if (closestBox != null)
-            {
-                Debug.Log($"🎁 [RPC] 가장 가까운 박스 찾음: {closestBox.name} (거리: {closestDistance:F2}m)");
-                RemoveBoxFromList(closestBox);
-                Destroy(closestBox);
-            }
-        }
-
-        // 여기서 추후 인벤토리 시스템과 연결 가능
-        // 예: InventoryManager.Instance.AddItem(playerName, itemName);
-    }
-
     // 모든 박스 제거 (게임 종료 시 등)
     public void ClearAllBoxes()
     {
@@ -464,6 +405,39 @@ public class ItemSpawner : MonoBehaviourPun
             }
         }
         return null;
+    }
+
+    [PunRPC]
+    void RPC_ItemPickedUp(string playerName, string itemName, float posX, float posY, float posZ)
+    {
+        Debug.Log($"🎁 [RPC] {playerName}이 아이템 습득: {itemName} 위치: ({posX:F2}, {posY:F2}, {posZ:F2})");
+
+        // ✅ 무기 타입 파싱
+        string parsedName = itemName.Contains("(") ? itemName.Split('(')[0].Trim() : itemName;
+        if (!System.Enum.TryParse(parsedName, out WeaponType weaponType))
+        {
+            Debug.LogError($"❌ 무기 파싱 실패: {parsedName}");
+            return;
+        }
+
+        // ✅ 로컬 플레이어만 무기 추가
+        if (PhotonNetwork.LocalPlayer.NickName == playerName)
+        {
+            WeaponData newWeapon = WeaponManager.Instance.GetWeaponByType(weaponType);
+            newWeapon.ammoCount = 1;
+            newWeapon.isInfiniteAmmo = false;
+            WeaponManager.Instance.AddWeapon(newWeapon);
+        }
+
+        // 기존 박스 제거 로직 유지
+        Vector3 itemPosition = new Vector3(posX, posY, posZ);
+        GameObject boxToRemove = FindBoxByPosition(itemPosition);
+
+        if (boxToRemove != null)
+        {
+            RemoveBoxFromList(boxToRemove);
+            Destroy(boxToRemove);
+        }
     }
 
 }

@@ -137,14 +137,11 @@ public class ItemDropTable : ScriptableObject
     {
         itemDrops.Clear();
 
-        // ⚠️ 1번(BasicGun)은 기본무기라서 드랍 안 함! 2~7번만 드랍
-        // 친구의 WeaponType에 맞춰 기본 확률 설정 (총 6개 아이템)
-
         itemDrops.Add(new ItemDropData
         {
             itemName = "블랙홀",
-            weaponType = WeaponType.Blackhole, // 2번
-            dropChance = 20f,
+            weaponType = WeaponType.Blackhole,
+            dropChance = 50f,
             rarity = ItemRarity.Uncommon,
             rarityColor = Color.blue,
             description = "강력한 흡입력을 가진 블랙홀"
@@ -153,54 +150,14 @@ public class ItemDropTable : ScriptableObject
         itemDrops.Add(new ItemDropData
         {
             itemName = "RPG",
-            weaponType = WeaponType.RPG, // 3번
-            dropChance = 25f,
+            weaponType = WeaponType.RPG,
+            dropChance = 50f,
             rarity = ItemRarity.Common,
             rarityColor = Color.green,
             description = "폭발력이 강한 로켓 런처"
         });
 
-        itemDrops.Add(new ItemDropData
-        {
-            itemName = "화염병",
-            weaponType = WeaponType.FireBottle, // 4번
-            dropChance = 25f,
-            rarity = ItemRarity.Common,
-            rarityColor = Color.red,
-            description = "지속 화염 데미지"
-        });
-
-        itemDrops.Add(new ItemDropData
-        {
-            itemName = "카펫 폭탄",
-            weaponType = WeaponType.CarpetBomb, // 5번
-            dropChance = 20f,
-            rarity = ItemRarity.Uncommon,
-            rarityColor = Color.yellow,
-            description = "광범위 폭격"
-        });
-
-        itemDrops.Add(new ItemDropData
-        {
-            itemName = "에너지 웨이브",
-            weaponType = WeaponType.EnergyWave, // 6번
-            dropChance = 8f,
-            rarity = ItemRarity.Rare,
-            rarityColor = Color.magenta,
-            description = "관통형 에너지 빔"
-        });
-
-        itemDrops.Add(new ItemDropData
-        {
-            itemName = "회복 아이템",
-            weaponType = WeaponType.Heal, // 7번
-            dropChance = 2f,
-            rarity = ItemRarity.Epic,
-            rarityColor = Color.cyan,
-            description = "즉시 체력 회복"
-        });
-
-        Debug.Log("기본 아이템 드랍 테이블 생성 완료! (2~7번 무기, 총 100%)");
+        Debug.Log("✅ 블랙홀 & RPG만 포함된 드랍 테이블 생성 완료");
         CalculateTotalPercentage();
     }
 

@@ -4,6 +4,7 @@ using UnityEngine.UI;
 public class InventoryManager : MonoBehaviour
 {
     public static InventoryManager Instance;
+    public Text[] slotCounts;
 
     [Header("아이템 아이콘 슬롯 (Icon Image 연결)")]
     public Image[] slotIcons; // 슬롯 안의 Icon 이미지들을 배열로 받음
@@ -40,7 +41,8 @@ public class InventoryManager : MonoBehaviour
         {
             if (i < WeaponManager.Instance.inventory.Count)
             {
-                Sprite icon = WeaponManager.Instance.inventory[i].icon;
+                var weapon = WeaponManager.Instance.inventory[i];
+                Sprite icon = weapon.icon;
 
                 if (icon != null)
                 {
@@ -52,13 +54,27 @@ public class InventoryManager : MonoBehaviour
                     slotIcons[i].sprite = null;
                     slotIcons[i].enabled = false;
                 }
+
+                // 🔫 탄 수 UI 추가
+                if (slotCounts != null && i < slotCounts.Length && slotCounts[i] != null)
+                {
+                    slotCounts[i].text = weapon.isInfiniteAmmo ? "∞" : weapon.ammoCount.ToString();
+                    slotCounts[i].enabled = true;
+                }
             }
             else
             {
                 slotIcons[i].sprite = null;
                 slotIcons[i].enabled = false;
+
+                if (slotCounts != null && i < slotCounts.Length && slotCounts[i] != null)
+                {
+                    slotCounts[i].text = "";
+                    slotCounts[i].enabled = false;
+                }
             }
         }
+
 
         // 슬롯 테두리 색상 업데이트
         for (int i = 0; i < slotBackgrounds.Length; i++)
@@ -75,4 +91,5 @@ public class InventoryManager : MonoBehaviour
         selectedSlotIndex = index;
         UpdateInventoryUI();
     }
+
 }
