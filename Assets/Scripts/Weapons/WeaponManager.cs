@@ -177,6 +177,10 @@ public class WeaponManager : MonoBehaviourPunCallbacks
         if (!weapon.isInfiniteAmmo)
         {
             weapon.ammoCount--;
+
+            InventoryManager.Instance.UpdateInventoryUI();
+
+            
             if (weapon.ammoCount <= 0)
             {
                 inventory.RemoveAt(currentWeaponIndex);
