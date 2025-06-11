@@ -22,11 +22,10 @@ public class ItemSpawner : MonoBehaviourPun
     [Header("스폰 관리")]
     public List<GameObject> spawnedBoxes = new List<GameObject>(); // 현재 스폰된 박스들 (무제한)
 
-    [Header("아이템 밸런스 확률")]
-    public ItemDropTable itemDropTable;
+    [Header("스폰 Y 오프셋")]
+    public float groundOffset = 0.4f;
 
     [Header("더미 테스트용")]
-    public bool useDummySystem = true;      // 더미 시스템 사용 여부
     public GameObject dummyBoxPrefab;       // 더미 박스 프리팹
 
     void Awake()
@@ -154,7 +153,7 @@ public class ItemSpawner : MonoBehaviourPun
             if (hit.collider != null)
             {
                 // 지형 위 0.3만큼 위에 스폰 (더 낮게)
-                Vector3 spawnPos = new Vector3(x, hit.point.y + 0.3f, z);
+                Vector3 spawnPos = new Vector3(x, hit.point.y + groundOffset, z);
 
                 // ✅ 기존 박스들과 거리 체크 추가
                 if (IsPositionValid(spawnPos))
@@ -241,16 +240,7 @@ public class ItemSpawner : MonoBehaviourPun
     // 사용할 아이템 박스 프리팹 결정
     GameObject GetItemBoxPrefab()
     {
-        if (useDummySystem && dummyBoxPrefab != null)
-        {
-            return dummyBoxPrefab; // 더미 시스템 사용
-        }
-        else if (itemBoxPrefab != null)
-        {
-            return itemBoxPrefab; // 친구의 실제 프리팹 사용
-        }
-
-        return null;
+        return dummyBoxPrefab;  // 무조건 더미 박스만 사용
     }
 
     // 박스 목록에서 제거 (플레이어가 먹었을 때 호출)
@@ -299,65 +289,6 @@ public class ItemSpawner : MonoBehaviourPun
 
         // 박스 삭제
         Destroy(itemBox);
-    }
-
-    // ✅ RPC: 모든 클라이언트에서 아이템 습득 처리 (수정된 버전)
-    [PunRPC]
-    void RPC_ItemPickedUp(string playerName, string itemName, float posX, float posY, float posZ)
-    {
-        Debug.Log($"🎁 [RPC] {playerName}이 아이템 습득: {itemName} 위치: ({posX:F2}, {posY:F2}, {posZ:F2})");
-
-        // ✅ spawnedBoxes 리스트에서 해당 위치의 박스 찾기
-        Vector3 itemPosition = new Vector3(posX, posY, posZ);
-        GameObject boxToRemove = FindBoxByPosition(itemPosition);
-
-        if (boxToRemove != null)
-        {
-            Debug.Log($"🎁 [RPC] 위치 매칭된 박스 발견: {boxToRemove.name}");
-
-            // 이펙트 재생 (아직 안 했다면)
-            DummyItemBox dummyBox = boxToRemove.GetComponent<DummyItemBox>();
-            if (dummyBox != null)
-            {
-                dummyBox.PlayPickupEffect();
-            }
-
-            // 박스 제거
-            RemoveBoxFromList(boxToRemove);
-            Destroy(boxToRemove);
-            Debug.Log($"🎁 [RPC] 박스 삭제 완료: {boxToRemove.name}");
-        }
-        else
-        {
-            Debug.LogWarning($"🎁 [RPC] 해당 위치의 박스를 찾지 못했습니다: ({posX:F2}, {posY:F2}, {posZ:F2})");
-
-            // ✅ 백업: 모든 박스 중에서 가장 가까운 것 찾기
-            GameObject closestBox = null;
-            float closestDistance = float.MaxValue;
-
-            foreach (GameObject box in spawnedBoxes.ToArray())
-            {
-                if (box != null)
-                {
-                    float distance = Vector3.Distance(box.transform.position, itemPosition);
-                    if (distance < closestDistance && distance < 2f) // 2미터 이내
-                    {
-                        closestDistance = distance;
-                        closestBox = box;
-                    }
-                }
-            }
-
-            if (closestBox != null)
-            {
-                Debug.Log($"🎁 [RPC] 가장 가까운 박스 찾음: {closestBox.name} (거리: {closestDistance:F2}m)");
-                RemoveBoxFromList(closestBox);
-                Destroy(closestBox);
-            }
-        }
-
-        // 여기서 추후 인벤토리 시스템과 연결 가능
-        // 예: InventoryManager.Instance.AddItem(playerName, itemName);
     }
 
     // 모든 박스 제거 (게임 종료 시 등)
@@ -464,6 +395,39 @@ public class ItemSpawner : MonoBehaviourPun
             }
         }
         return null;
+    }
+
+    [PunRPC]
+    void RPC_ItemPickedUp(string playerName, string itemName, float posX, float posY, float posZ)
+    {
+        Debug.Log($"🎁 [RPC] {playerName}이 아이템 습득: {itemName} 위치: ({posX:F2}, {posY:F2}, {posZ:F2})");
+
+        // ✅ 무기 타입 파싱
+        string parsedName = itemName.Contains("(") ? itemName.Split('(')[0].Trim() : itemName;
+        if (!System.Enum.TryParse(parsedName, out WeaponType weaponType))
+        {
+            Debug.LogError($"❌ 무기 파싱 실패: {parsedName}");
+            return;
+        }
+
+        // ✅ 로컬 플레이어만 무기 추가
+        if (PhotonNetwork.LocalPlayer.NickName == playerName)
+        {
+            WeaponData newWeapon = WeaponManager.Instance.GetWeaponByType(weaponType);
+            newWeapon.ammoCount = 1;
+            newWeapon.isInfiniteAmmo = false;
+            WeaponManager.Instance.AddWeapon(newWeapon);
+        }
+
+        // 기존 박스 제거 로직 유지
+        Vector3 itemPosition = new Vector3(posX, posY, posZ);
+        GameObject boxToRemove = FindBoxByPosition(itemPosition);
+
+        if (boxToRemove != null)
+        {
+            RemoveBoxFromList(boxToRemove);
+            Destroy(boxToRemove);
+        }
     }
 
 }

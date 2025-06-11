@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0b1aa77996cc39348a709acb4df5f965, type: 3}
+  m_Name: RPGData
+  m_EditorClassIdentifier: 
+  weaponName: RPG
+  icon: {fileID: 21300000, guid: 4f1cda63449f5b2458c309d89ddc1735, type: 3}
+  projectilePrefab: {fileID: 6449462980904097254, guid: 34fb3ee6ce7847e41b673d89233f762a, type: 3}
+  damage: 80
+  range: 10
+  cooldown: 1
+  bulletSpeed: 1.5
+  explosionEffectPrefab: {fileID: 7135395293779586346, guid: 1ccdead3ec2f5254da0119319f9f374a, type: 3}
+  fireSound: {fileID: 0}
+  explosionRadius: 50
+  explosionForce: 1
+  isInstantUse: 0
+  useGravity: 1

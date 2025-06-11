@@ -34,34 +34,28 @@ MonoBehaviour:
   RunInBackground: 1
   StartInOfflineMode: 0
   RpcList:
+  - ApplyDamage
+  - ApplyFallDeath
+  - ApplyHeal
   - ClickRpc
   - DestroyRpc
   - DestroySpaceship
   - Fire
-  - RespawnSpaceship
-  - NotifyPlayerKicked
+  - PrepareReturnToRoom
   - ReceiveChatMessage
+  - RequestBotInfo
+  - RespawnSpaceship
+  - RPC_ItemPickedUp
+  - RPC_RequestItemPickup
+  - RPC_SpawnItemBox
+  - SetPlayerMovementState
   - SyncBotAdded
   - SyncBotRemoved
-  - RequestBotInfo
-  - SetPlayerMovementState
-  - SyncPlayerColor
-  - RPC_SpawnItemBox
-  - OnItemPickedUp
-  - RPC_ItemPickedUp
   - SyncGameData
   - SyncGameStart
+  - SyncPlayerColor
   - SyncTurnStart
-  - PrepareReturnToRoom
-  - RPC_HealPlayer
-  - RPC_TakeDamage
-  - SyncGameEnd
-  - SyncHealthChange
-  - SyncPlayerDeath
-  - ApplyDamage
-  - ApplyFallDeath
-  - ApplyHeal
-  - RPC_RequestItemPickup
+  - RPC_Fire
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

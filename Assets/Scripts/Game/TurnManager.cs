@@ -536,4 +536,27 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
             }
         }
     }
+
+    // TurnManager.cs
+
+    void OnTurnStarted(Photon.Realtime.Player currentPlayer)
+    {
+        if (currentPlayer == null) return;
+
+        GameObject playerObj = PlayerSpawner.Instance.GetPlayerObject(currentPlayer.NickName);
+        if (playerObj != null)
+        {
+            Transform firePoint = playerObj.transform.Find("FirePoint");
+            if (firePoint != null)
+            {
+                WeaponManager.Instance.SetFirePoint(firePoint);
+                Debug.Log($"🔥 {currentPlayer.NickName}의 FirePoint 설정 완료");
+            }
+            else
+            {
+                Debug.LogWarning("❌ FirePoint를 찾을 수 없습니다!");
+            }
+        }
+    }
+
 }

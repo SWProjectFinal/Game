@@ -5,13 +5,13 @@ using Photon.Pun;
 public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
 {
   [Header("더미 설정")]
-  public bool useDropTable = true;
-  public ItemDropTable dropTable;
+  //public bool useDropTable = true;
+  //public ItemDropTable dropTable;
 
   [Header("백업 아이템 목록 (드랍 테이블 없을 때)")]
   public string[] dummyItems = {
-        "블랙홀", "RPG", "화염병", "카펫폭탄", "에너지웨이브", "회복템"
-    }; // ⚠️ 기본무기 제외하고 2~7번만
+    "Blackhole", "RPG"
+  };
 
   [Header("이펙트")]
   public GameObject pickupEffect;
@@ -24,6 +24,61 @@ public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
   {
     // 물음표 표시를 위한 간단한 애니메이션 (선택사항)
     //StartCoroutine(FloatingAnimation());
+  }
+
+  void Awake()
+  {
+    SetupPhysics();
+  }
+
+  // ✅ 물리 설정 개선
+  void SetupPhysics()
+  {
+    // Rigidbody2D 설정
+    Rigidbody2D rb = GetComponent<Rigidbody2D>();
+    if (rb == null)
+    {
+      rb = gameObject.AddComponent<Rigidbody2D>();
+    }
+
+    // 물리 설정
+    rb.gravityScale = 1f;
+    rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+    rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+    rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+    
+    // ✅ 질량과 저항 설정 (너무 빠르게 떨어지지 않도록)
+    rb.mass = 0.5f;
+    rb.drag = 0.2f;
+    
+
+    // BoxCollider2D 설정 확인
+    BoxCollider2D boxCollider = GetComponent<BoxCollider2D>();
+    if (boxCollider != null)
+    {
+      // ✅ Trigger는 아이템 습득용으로만 사용
+      boxCollider.isTrigger = true;
+      
+      // 크기 조정 (너무 작지 않게)
+      if (boxCollider.size == Vector2.zero)
+      {
+        boxCollider.size = Vector2.one;
+      }
+    }
+
+    // ✅ 땅과 충돌용 추가 Collider 생성
+    GameObject physicsChild = new GameObject("PhysicsCollider");
+    physicsChild.transform.SetParent(transform);
+    physicsChild.transform.localPosition = Vector3.zero;
+    physicsChild.layer = gameObject.layer;
+    
+    // 물리 충돌용 BoxCollider2D 추가
+    BoxCollider2D physicsCollider = physicsChild.AddComponent<BoxCollider2D>();
+    physicsCollider.isTrigger = false; // 물리 충돌용
+    physicsCollider.size = boxCollider != null ? boxCollider.size : Vector2.one;
+    physicsCollider.offset = new Vector2(0, 0.3f); // ← 여기서 바닥 쪽으로 살짝 내림
+    
+    Debug.Log($"✅ DummyItemBox 물리 설정 완료: Trigger={boxCollider?.isTrigger}, Physics={!physicsCollider.isTrigger}");
   }
 
   void OnTriggerEnter2D(Collider2D other)
@@ -72,6 +127,12 @@ public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
     }
   }
 
+  // ✅ 물리 충돌 디버그용 (자식 오브젝트에서 호출)
+  void OnCollisionEnter2D(Collision2D collision)
+  {
+    Debug.Log($"🔥 DummyItemBox 충돌: {collision.gameObject.name} (Layer: {collision.gameObject.layer})");
+  }
+
   // ✅ 새로 추가: 플레이어 이름 가져오기
   string GetPlayerName(Collider2D playerCollider)
   {
@@ -90,32 +151,8 @@ public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
   // 랜덤 더미 아이템 선택
   string GetRandomDummyItem()
   {
-    if (useDropTable && dropTable != null)
-    {
-      // 드랍 테이블 사용
-      WeaponType selectedWeapon = dropTable.GetRandomItem();
-      var itemData = dropTable.GetItemData(selectedWeapon);
-
-      if (itemData != null)
-      {
-        return $"{itemData.itemName} ({itemData.rarity})";
-      }
-      else
-      {
-        return selectedWeapon.ToString();
-      }
-    }
-    else
-    {
-      // 백업 시스템: 균등 확률
-      if (dummyItems.Length > 0)
-      {
-        int randomIndex = Random.Range(0, dummyItems.Length);
-        return dummyItems[randomIndex];
-      }
-    }
-
-    return "알 수 없는 아이템";
+    int randomIndex = Random.Range(0, dummyItems.Length);
+    return dummyItems[randomIndex];
   }
 
   // 습득 이펙트 재생
