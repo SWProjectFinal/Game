@@ -93,41 +93,38 @@ public class Blackhole : MonoBehaviour
         textureWidth = originalTex.width;
         textureHeight = originalTex.height;
 
-        if (sharedGroundTexture == null)
+        // ✅ 매번 새로운 텍스처 생성 (static 제거)
+        tex = new Texture2D(textureWidth, textureHeight, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Point;
+
+        try
         {
-            sharedGroundTexture = new Texture2D(textureWidth, textureHeight, TextureFormat.RGBA32, false);
-            sharedGroundTexture.filterMode = FilterMode.Point;
-
-            try
-            {
-                originalPixels = originalTex.GetPixels();
-            }
-            catch
-            {
-                Debug.LogError("Read/Write 체크 안됨!");
-                return;
-            }
-
-            sharedPixels = new Color[originalPixels.Length];
-            System.Array.Copy(originalPixels, sharedPixels, originalPixels.Length);
-            sharedGroundTexture.SetPixels(sharedPixels);
-            sharedGroundTexture.Apply();
-
-            sharedPixelsChanged = new bool[originalPixels.Length];
-
-            Sprite newSprite = Sprite.Create(
-                sharedGroundTexture,
-                groundRenderer.sprite.rect,
-                groundRenderer.sprite.pivot / groundRenderer.sprite.rect.size,
-                groundRenderer.sprite.pixelsPerUnit
-            );
-            groundRenderer.sprite = newSprite;
+            // 현재 Ground의 픽셀 데이터 가져오기
+            originalPixels = originalTex.GetPixels();
+        }
+        catch
+        {
+            Debug.LogError("Read/Write 체크 안됨!");
+            return;
         }
 
-        originalPixels = sharedPixels;
-        currentPixels = sharedPixels;
-        pixelsChanged = sharedPixelsChanged;
-        tex = sharedGroundTexture;
+        currentPixels = new Color[originalPixels.Length];
+        System.Array.Copy(originalPixels, currentPixels, originalPixels.Length);
+        tex.SetPixels(currentPixels);
+        tex.Apply();
+
+        pixelsChanged = new bool[originalPixels.Length];
+
+        // 새로운 스프라이트 생성 및 적용
+        Sprite newSprite = Sprite.Create(
+            tex,
+            groundRenderer.sprite.rect,
+            groundRenderer.sprite.pivot / groundRenderer.sprite.rect.size,
+            groundRenderer.sprite.pixelsPerUnit
+        );
+        groundRenderer.sprite = newSprite;
+
+        Debug.Log($"✅ 블랙홀 텍스처 생성 완료");
     }
 
     void CalculateBlackholePixelPosition()
@@ -327,41 +324,30 @@ public class Blackhole : MonoBehaviour
     {
         yield return new WaitForEndOfFrame();
 
-        if (HasRemainingPixels())
+        // ✅ 항상 콜라이더를 재생성 (픽셀 체크 안 함)
+        var newCol = groundRenderer.gameObject.AddComponent<PolygonCollider2D>();
+        if (newCol != null)
         {
-            var newCol = groundRenderer.gameObject.AddComponent<PolygonCollider2D>();
-            if (newCol != null)
-            {
-                newCol.isTrigger = false;
-                groundCollider = newCol;
-            }
+            newCol.isTrigger = false;
+            groundCollider = newCol;
+            Debug.Log("✅ 콜라이더 재생성 완료 (안전 모드)");
         }
         else
         {
-            Debug.Log("Ground에 픽셀이 없어 Ground 오브젝트 비활성화 처리.");
-
-            foreach (var col in groundObject.GetComponents<Collider2D>())
-                DestroyImmediate(col);
-
-            if (groundRenderer) groundRenderer.enabled = false;
-            if (groundObject) groundObject.SetActive(false);
+            Debug.LogWarning("⚠️ 콜라이더 재생성 실패");
         }
+
+        // ✅ 맵 비활성화 로직 완전 제거
+        // HasRemainingPixels() 체크를 하지 않음
+        // 맵은 절대 사라지지 않음
     }
 
+    // ✅ HasRemainingPixels() 함수도 단순화 (사용 안 함)
     bool HasRemainingPixels()
     {
-        if (sharedPixels == null) return false;
-
-        int count = 0;
-        foreach (var p in sharedPixels)
-        {
-            if (p.a > 0.01f) count++;
-        }
-
-        float percent = (float)count / sharedPixels.Length * 100f;
-        return percent >= minimumPixelPercentage;
+        // 항상 true 반환 (맵을 절대 비활성화하지 않음)
+        return true;
     }
-
     void OnDestroy()
     {
         activeBlackholes--;

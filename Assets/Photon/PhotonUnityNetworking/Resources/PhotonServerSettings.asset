@@ -56,6 +56,9 @@ MonoBehaviour:
   - SyncPlayerColor
   - SyncTurnStart
   - RPC_Fire
+  - SyncBlackholeDestruction
+  - SyncFinalDestruction
+  - SyncTerrainDestruction
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1
