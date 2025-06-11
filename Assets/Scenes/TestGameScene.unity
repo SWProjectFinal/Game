@@ -1802,7 +1802,7 @@ MonoBehaviour:
   OwnershipTransfer: 0
   observableSearch: 2
   ObservedComponents: []
-  sceneViewId: 1
+  sceneViewId: 5
   InstantiationId: 0
   isRuntimeInstantiated: 0
 --- !u!114 &657807455
@@ -2788,8 +2788,8 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 512
-  spawn3Chance: 0.1
-  spawn2Chance: 0.2
+  spawn3Chance: 0.05
+  spawn2Chance: 0.05
   spawnedBoxes: []
   groundOffset: 1.5
   dummyBoxPrefab: {fileID: 4668149066186598798, guid: 31855384b68cf604dbd996283a3897ad, type: 3}
