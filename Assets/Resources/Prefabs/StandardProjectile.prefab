@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 3683728959716342556}
   - component: {fileID: 4634214121907773435}
   - component: {fileID: -498643783113768023}
-  m_Layer: 0
+  m_Layer: 11
   m_Name: StandardProjectile
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -110,8 +110,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   weaponData: {fileID: 0}
-  holeTexture: {fileID: 2800000, guid: 8de20c5a3277c6441a20af6340703575, type: 3}
   power: 1
+  shootDirection: {x: 1, y: 0}
 --- !u!212 &-498643783113768023
 SpriteRenderer:
   m_ObjectHideFlags: 0

@@ -2763,7 +2763,7 @@ GameObject:
   - component: {fileID: 923085834}
   - component: {fileID: 923085837}
   - component: {fileID: 923085836}
-  m_Layer: 9
+  m_Layer: 10
   m_Name: ItemSpawner
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2791,6 +2791,7 @@ MonoBehaviour:
   spawn3Chance: 0.1
   spawn2Chance: 0.2
   spawnedBoxes: []
+  groundOffset: 1.5
   dummyBoxPrefab: {fileID: 4668149066186598798, guid: 31855384b68cf604dbd996283a3897ad, type: 3}
 --- !u!4 &923085835
 Transform:

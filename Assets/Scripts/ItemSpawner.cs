@@ -22,6 +22,9 @@ public class ItemSpawner : MonoBehaviourPun
     [Header("스폰 관리")]
     public List<GameObject> spawnedBoxes = new List<GameObject>(); // 현재 스폰된 박스들 (무제한)
 
+    [Header("스폰 Y 오프셋")]
+    public float groundOffset = 0.4f;
+
     [Header("더미 테스트용")]
     public GameObject dummyBoxPrefab;       // 더미 박스 프리팹
 
@@ -150,7 +153,7 @@ public class ItemSpawner : MonoBehaviourPun
             if (hit.collider != null)
             {
                 // 지형 위 0.3만큼 위에 스폰 (더 낮게)
-                Vector3 spawnPos = new Vector3(x, hit.point.y + 0.3f, z);
+                Vector3 spawnPos = new Vector3(x, hit.point.y + groundOffset, z);
 
                 // ✅ 기존 박스들과 거리 체크 추가
                 if (IsPositionValid(spawnPos))

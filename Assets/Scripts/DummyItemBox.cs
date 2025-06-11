@@ -26,6 +26,61 @@ public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
     //StartCoroutine(FloatingAnimation());
   }
 
+  void Awake()
+  {
+    SetupPhysics();
+  }
+
+  // ✅ 물리 설정 개선
+  void SetupPhysics()
+  {
+    // Rigidbody2D 설정
+    Rigidbody2D rb = GetComponent<Rigidbody2D>();
+    if (rb == null)
+    {
+      rb = gameObject.AddComponent<Rigidbody2D>();
+    }
+
+    // 물리 설정
+    rb.gravityScale = 1f;
+    rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+    rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+    rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+    
+    // ✅ 질량과 저항 설정 (너무 빠르게 떨어지지 않도록)
+    rb.mass = 0.5f;
+    rb.drag = 0.2f;
+    
+
+    // BoxCollider2D 설정 확인
+    BoxCollider2D boxCollider = GetComponent<BoxCollider2D>();
+    if (boxCollider != null)
+    {
+      // ✅ Trigger는 아이템 습득용으로만 사용
+      boxCollider.isTrigger = true;
+      
+      // 크기 조정 (너무 작지 않게)
+      if (boxCollider.size == Vector2.zero)
+      {
+        boxCollider.size = Vector2.one;
+      }
+    }
+
+    // ✅ 땅과 충돌용 추가 Collider 생성
+    GameObject physicsChild = new GameObject("PhysicsCollider");
+    physicsChild.transform.SetParent(transform);
+    physicsChild.transform.localPosition = Vector3.zero;
+    physicsChild.layer = gameObject.layer;
+    
+    // 물리 충돌용 BoxCollider2D 추가
+    BoxCollider2D physicsCollider = physicsChild.AddComponent<BoxCollider2D>();
+    physicsCollider.isTrigger = false; // 물리 충돌용
+    physicsCollider.size = boxCollider != null ? boxCollider.size : Vector2.one;
+    physicsCollider.offset = new Vector2(0, 0.3f); // ← 여기서 바닥 쪽으로 살짝 내림
+    
+    Debug.Log($"✅ DummyItemBox 물리 설정 완료: Trigger={boxCollider?.isTrigger}, Physics={!physicsCollider.isTrigger}");
+  }
+
   void OnTriggerEnter2D(Collider2D other)
   {
     // ✅ 중복 습득 방지
@@ -70,6 +125,12 @@ public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
       // ✅ 일단 로컬에서 박스 비활성화 (시각적 피드백)
       gameObject.SetActive(false);
     }
+  }
+
+  // ✅ 물리 충돌 디버그용 (자식 오브젝트에서 호출)
+  void OnCollisionEnter2D(Collision2D collision)
+  {
+    Debug.Log($"🔥 DummyItemBox 충돌: {collision.gameObject.name} (Layer: {collision.gameObject.layer})");
   }
 
   // ✅ 새로 추가: 플레이어 이름 가져오기

@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 5565876065165979698}
   - component: {fileID: 8510329570521090497}
   - component: {fileID: 5595852566632237572}
-  m_Layer: 0
+  m_Layer: 11
   m_Name: BlackholeProjectile
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -163,4 +163,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   weaponData: {fileID: 0}
   power: 1
+  shootDirection: {x: 1, y: 0}
   blackholePrefab: {fileID: 1661409599606062723, guid: cb6ee9c85587447419c1645cc0c5ddf4, type: 3}
