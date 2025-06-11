@@ -22,11 +22,7 @@ public class ItemSpawner : MonoBehaviourPun
     [Header("스폰 관리")]
     public List<GameObject> spawnedBoxes = new List<GameObject>(); // 현재 스폰된 박스들 (무제한)
 
-    [Header("아이템 밸런스 확률")]
-    public ItemDropTable itemDropTable;
-
     [Header("더미 테스트용")]
-    public bool useDummySystem = true;      // 더미 시스템 사용 여부
     public GameObject dummyBoxPrefab;       // 더미 박스 프리팹
 
     void Awake()
@@ -241,16 +237,7 @@ public class ItemSpawner : MonoBehaviourPun
     // 사용할 아이템 박스 프리팹 결정
     GameObject GetItemBoxPrefab()
     {
-        if (useDummySystem && dummyBoxPrefab != null)
-        {
-            return dummyBoxPrefab; // 더미 시스템 사용
-        }
-        else if (itemBoxPrefab != null)
-        {
-            return itemBoxPrefab; // 친구의 실제 프리팹 사용
-        }
-
-        return null;
+        return dummyBoxPrefab;  // 무조건 더미 박스만 사용
     }
 
     // 박스 목록에서 제거 (플레이어가 먹었을 때 호출)

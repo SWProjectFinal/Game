@@ -5,8 +5,8 @@ using Photon.Pun;
 public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
 {
   [Header("더미 설정")]
-  public bool useDropTable = true;
-  public ItemDropTable dropTable;
+  //public bool useDropTable = true;
+  //public ItemDropTable dropTable;
 
   [Header("백업 아이템 목록 (드랍 테이블 없을 때)")]
   public string[] dummyItems = {
@@ -90,32 +90,8 @@ public class DummyItemBox : MonoBehaviour // ← MonoBehaviourPun 제거!
   // 랜덤 더미 아이템 선택
   string GetRandomDummyItem()
   {
-    if (useDropTable && dropTable != null)
-    {
-      // 드랍 테이블 사용
-      WeaponType selectedWeapon = dropTable.GetRandomItem();
-      var itemData = dropTable.GetItemData(selectedWeapon);
-
-      if (itemData != null)
-      {
-        return $"{itemData.itemName} ({itemData.rarity})";
-      }
-      else
-      {
-        return selectedWeapon.ToString();
-      }
-    }
-    else
-    {
-      // 백업 시스템: 균등 확률
-      if (dummyItems.Length > 0)
-      {
-        int randomIndex = Random.Range(0, dummyItems.Length);
-        return dummyItems[randomIndex];
-      }
-    }
-
-    return "알 수 없는 아이템";
+    int randomIndex = Random.Range(0, dummyItems.Length);
+    return dummyItems[randomIndex];
   }
 
   // 습득 이펙트 재생

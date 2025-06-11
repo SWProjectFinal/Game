@@ -46,28 +46,30 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
     void Start()
     {
-        Debug.Log("🚀 WeaponManager Start");
-
         inventory.Clear();
+        allWeapons.Clear();
 
         if (basicGunSO != null)
         {
-            inventory.Add(new WeaponData
+            var basicWeapon = new WeaponData
             {
                 type = WeaponType.BasicGun,
                 displayName = basicGunSO.weaponName,
                 isInstantUse = basicGunSO.isInstantUse,
-                icon = basicGunSO.icon,
+                icon = basicGunSO.icon,    // 요거!!
                 projectilePrefab = basicGunSO.projectilePrefab,
                 damage = basicGunSO.damage,
                 ammoCount = 999,
                 isInfiniteAmmo = true
-            });
+            };
+
+            inventory.Add(basicWeapon);
+            allWeapons.Add(basicWeapon);
         }
 
         if (blackholeSO != null)
         {
-            inventory.Add(new WeaponData
+            var blackholeWeapon = new WeaponData
             {
                 type = WeaponType.Blackhole,
                 displayName = blackholeSO.weaponName,
@@ -77,12 +79,15 @@ public class WeaponManager : MonoBehaviourPunCallbacks
                 damage = blackholeSO.damage,
                 ammoCount = 1,
                 isInfiniteAmmo = false
-            });
+            };
+
+            inventory.Add(blackholeWeapon);
+            allWeapons.Add(blackholeWeapon);
         }
 
         if (rpgSO != null)
         {
-            inventory.Add(new WeaponData
+            var rpgWeapon = new WeaponData
             {
                 type = WeaponType.RPG,
                 displayName = rpgSO.weaponName,
@@ -92,7 +97,10 @@ public class WeaponManager : MonoBehaviourPunCallbacks
                 damage = rpgSO.damage,
                 ammoCount = 1,
                 isInfiniteAmmo = false
-            });
+            };
+
+            inventory.Add(rpgWeapon);
+            allWeapons.Add(rpgWeapon);
         }
 
         FindObjectOfType<InventoryManager>().UpdateInventoryUI();

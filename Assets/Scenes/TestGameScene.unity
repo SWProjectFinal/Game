@@ -1504,7 +1504,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   catPrefab: {fileID: 6160795662189038639, guid: 50dd8a07c0b64d44099d20950bc60200, type: 3}
   spawnPoints: []
-  spawnHeight: 0
+  spawnHeight: 3
   mapBounds: {x: 8.8, y: 5}
   spawnedPlayers: []
   spawnedBots: []
@@ -1659,6 +1659,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f97490b0be542f44e88e4a13d343ea49, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  currentSpriteRenderer: {fileID: 0}
   inventory:
   - type: 0
     displayName: 
@@ -1666,6 +1667,8 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
     damage: 0
     isInstantUse: 0
+    ammoCount: 1
+    isInfiniteAmmo: 0
   currentWeaponIndex: 0
   maxSlots: 7
   allWeapons: []
@@ -2558,6 +2561,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1174d93b3bb7522478cbcc4b65dc5abb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  slotCounts: []
   slotIcons:
   - {fileID: 248406353}
   - {fileID: 509878711}

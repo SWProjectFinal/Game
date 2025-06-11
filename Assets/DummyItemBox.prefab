@@ -196,14 +196,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0776f45ed2d44534a8a6611a1b992757, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  useDropTable: 1
-  dropTable: {fileID: 0}
   dummyItems:
-  - "\uBE14\uB799\uD640"
+  - Blackhole
   - RPG
-  - "\uD654\uC5FC\uBCD1"
-  - "\uCE74\uD3AB\uD3ED\uD0C4"
-  - "\uC5D0\uB108\uC9C0\uC6E8\uC774\uBE0C"
-  - "\uD68C\uBCF5\uD15C"
   pickupEffect: {fileID: 0}
   pickupSound: {fileID: 0}
