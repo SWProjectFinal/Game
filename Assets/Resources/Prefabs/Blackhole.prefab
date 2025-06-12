@@ -117,7 +117,7 @@ MonoBehaviour:
   explosionEffectPrefab: {fileID: 0}
   minimumPixelPercentage: 0.1
   suctionRange: 30
-  suctionForce: 15
+  suctionForce: 30
   suctionCurve:
     serializedVersion: 2
     m_Curve:
