@@ -490,4 +490,45 @@ public class WeaponManager : MonoBehaviourPunCallbacks
 
         InventoryManager.Instance.UpdateInventoryUI();
     }
+
+    public void SelectWeaponByIndex(int index)
+    {
+        if (index >= 0 && index < inventory.Count)
+        {
+            currentWeaponIndex = index;
+            InventoryManager.Instance.SetSelectedSlot(currentWeaponIndex);
+            Debug.Log($"AI가 {inventory[index].displayName} 무기 선택");
+        }
+    }
+
+    public void SetFireAngle(float targetAngle)
+    {
+        angle = Mathf.Clamp(targetAngle, -80f, 80f);
+
+        float finalAngle = facingRight ? angle : 180f - angle;
+
+        if (firePoint != null)
+        {
+            firePoint.localEulerAngles = new Vector3(0, 0, finalAngle);
+        }
+
+        Debug.Log($"🔥 AI가 조준각 설정: {angle}도");
+    }
+
+    public void SetFirePower(float powerRatio)
+    {
+        powerRatio = Mathf.Clamp01(powerRatio);
+        chargePower = Mathf.Lerp(minPower, maxPower, powerRatio);
+
+        Debug.Log($"🔥 AI가 파워 설정: {chargePower}");
+    }
+
+    public void Fire()
+    {
+        Vector2 dir = firePoint != null ? firePoint.right.normalized :
+                      (facingRight ? Vector2.right : Vector2.left);
+
+        FireWeapon(dir, chargePower);
+    }
+
 }

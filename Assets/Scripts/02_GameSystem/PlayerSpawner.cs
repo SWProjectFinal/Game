@@ -335,27 +335,33 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     // 봇은 로컬에서만 생성 (네트워크 오브젝트 아님)
     GameObject botObj = Instantiate(catPrefab, position, Quaternion.identity);
 
-    // 봇 이름 설정
+    // 봇 이름 설정 (컴포넌트 추가보다 먼저)
     botObj.name = botInfo.name;
+
+    // 네트워크 관련 컴포넌트들 먼저 제거
+    RemoveNetworkComponents(botObj);
+
+    // 기존 CatController 비활성화
+    var catController = botObj.GetComponent<CatController>();
+    if (catController != null)
+    {
+      catController.enabled = false;
+    }
+
+    // AI 컴포넌트들 추가 (순서 중요!)
+    AIAimSystem aimSystem = botObj.AddComponent<AIAimSystem>();
+    AIWeaponSelector weaponSelector = botObj.AddComponent<AIWeaponSelector>();
+    AIRandomItemLogic randomItemLogic = botObj.AddComponent<AIRandomItemLogic>();
+    AIBotController botController = botObj.AddComponent<AIBotController>(); // 마지막에 추가
 
     // 봇 색상 적용
     Color botColor = GetLobbyColor(botInfo.colorIndex);
     ApplyColorToSprite(botObj, botColor);
 
-    // 네트워크 관련 컴포넌트들 모두 제거 (봇은 로컬 오브젝트)
-    RemoveNetworkComponents(botObj);
-
-    // 봇 설정
-    var catController = botObj.GetComponent<CatController>();
-    if (catController != null)
-    {
-      // 봇은 입력을 받지 않도록 설정 (나중에 AI 추가)
-      catController.enabled = false;
-    }
-
     spawnedBots.Add(botObj);
 
     Debug.Log($"🤖 봇 스폰 완료: {botInfo.name} (색상: {botColor}) at {position}");
+    Debug.Log($"🤖 봇 컴포넌트 추가 완료: AimSystem, WeaponSelector, BotController");
   }
 
   void RemoveNetworkComponents(GameObject botObj)
@@ -561,5 +567,16 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     }
     return null;
   }
+
+  public GameObject GetBotObject(string nickname)
+  {
+    foreach (GameObject botObj in spawnedBots)
+    {
+      if (botObj != null && botObj.name == nickname)
+        return botObj;
+    }
+    return null;
+  }
+
 
 }

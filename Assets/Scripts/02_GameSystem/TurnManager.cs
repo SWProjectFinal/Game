@@ -352,15 +352,31 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
     // 봇 턴 처리 (임시로 3초 후 자동 종료)
     IEnumerator BotTurn()
     {
-        Debug.Log($"🤖 {GetCurrentPlayerName()} 봇 턴 진행 중...");
-        yield return new WaitForSeconds(3f); // 봇은 3초 후 자동 턴 종료
+        Debug.Log($"{GetCurrentPlayerName()} 봇 턴 진행 중...");
 
-        if (isGameActive && IsCurrentTurnBot())
+        // 봇 오브젝트 찾기
+        GameObject aiObj = PlayerSpawner.Instance.GetBotObject(GetCurrentPlayerName());
+
+        if (aiObj != null)
         {
-            Debug.Log($"🤖 {GetCurrentPlayerName()} 봇 턴 자동 종료");
-            EndTurn();
+            AIBotController aiController = aiObj.GetComponent<AIBotController>();
+            if (aiController != null)
+            {
+                aiController.DoTurn();
+            }
+            else
+            {
+                Debug.LogWarning("❌ AIBotController 못 찾음!");
+            }
         }
+        else
+        {
+            Debug.LogWarning("❌ AI GameObject 못 찾음!");
+        }
+
+        yield return null;
     }
+
 
     IEnumerator TurnTimer()
     {
