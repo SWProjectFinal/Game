@@ -53,6 +53,7 @@ public static class DamageSystem
   // 폭발 데미지 적용 (친구 무기 시스템에서 사용하는 메인 함수)
   public static void ApplyExplosionDamage(Vector3 explosionCenter, float explosionRadius, float maxDamage, AnimationCurve damageFalloff = null)
   {
+    // ✅ 이미 무기에서 마스터 클라이언트 체크를 했으므로 여기서는 실행
     var targets = GetPlayersInRadius(explosionCenter, explosionRadius);
 
     if (targets.Count == 0)
@@ -69,6 +70,12 @@ public static class DamageSystem
       float distance = Vector3.Distance(target.GetTransform().position, explosionCenter);
       float damageMultiplier = CalculateDamageMultiplier(distance, explosionRadius, damageFalloff);
       float finalDamage = maxDamage * damageMultiplier;
+
+      // ✅ 최소 데미지 보장 (너무 약하지 않게)
+      if (finalDamage < 1f && damageMultiplier > 0f)
+      {
+        finalDamage = 1f;
+      }
 
       // 데미지 적용
       target.TakeDamage(finalDamage, explosionCenter, explosionRadius);

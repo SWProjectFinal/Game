@@ -70,25 +70,74 @@ public class PlayerHealth : MonoBehaviourPun, IDamageable
   public void TakeDamage(float damage, Vector3 explosionCenter, float explosionRadius)
   {
     if (!IsAlive) return;
-    if (!photonView.IsMine) return; // 내 캐릭터만 데미지 처리
+
+    // ✅ 중복 방지: 자신의 캐릭터만 데미지 처리
+    PhotonView pv = GetComponent<PhotonView>();
+    if (pv != null && !pv.IsMine) return; // 내 캐릭터가 아니면 무시
 
     // 실제 데미지 계산 (거리 기반)
     float distance = Vector3.Distance(transform.position, explosionCenter);
     float damageMultiplier = Mathf.Clamp01(1f - (distance / explosionRadius));
     float actualDamage = damage * damageMultiplier;
 
-    // RPC로 모든 클라이언트에 데미지 전송
-    photonView.RPC("ApplyDamage", RpcTarget.All, actualDamage, explosionCenter.x, explosionCenter.y, explosionCenter.z);
+    // ✅ 네트워크 플레이어는 RPC로 모든 클라이언트에 동기화
+    if (pv != null)
+    {
+      pv.RPC("ApplyDamage", RpcTarget.All, actualDamage, explosionCenter.x, explosionCenter.y, explosionCenter.z);
+    }
+    else
+    {
+      // 봇은 로컬에서만 처리
+      ApplyDamageLocal(actualDamage, explosionCenter);
+    }
   }
 
   // 기본 데미지 (폭발 범위 없음)
   public void TakeDamage(float damage)
   {
     if (!IsAlive) return;
-    if (!photonView.IsMine) return;
 
-    photonView.RPC("ApplyDamage", RpcTarget.All, damage, transform.position.x, transform.position.y, transform.position.z);
+    // ✅ 봇 안전성 체크 추가
+    PhotonView pv = GetComponent<PhotonView>();
+    if (pv != null && !pv.IsMine) return;
+
+    // ✅ 봇과 플레이어 구분 처리
+    if (pv != null)
+    {
+      // 네트워크 플레이어
+      pv.RPC("ApplyDamage", RpcTarget.All, damage, transform.position.x, transform.position.y, transform.position.z);
+    }
+    else
+    {
+      // 봇: 로컬에서만 직접 데미지 적용
+      ApplyDamageLocal(damage, transform.position);
+      Debug.Log($"🤖 봇 데미지: {gameObject.name} - {damage:F1}");
+    }
   }
+
+  void ApplyDamageLocal(float damage, Vector3 sourcePos)
+  {
+    if (!IsAlive) return;
+
+    // 체력 감소
+    currentHealth -= damage;
+    currentHealth = Mathf.Max(0f, currentHealth);
+
+    Debug.Log($"[{gameObject.name}] 데미지 {damage:F1} 받음! 현재 HP: {currentHealth:F1}/{maxHealth}");
+
+    // 데미지 이펙트
+    PlayDamageEffect(sourcePos);
+
+    // 체력 UI 업데이트
+    UpdateHealthUI();
+
+    // 사망 체크
+    if (currentHealth <= 0f && IsAlive)
+    {
+      Die();
+    }
+  }
+
 
   // RPC: 모든 클라이언트에서 데미지 적용
   [PunRPC]

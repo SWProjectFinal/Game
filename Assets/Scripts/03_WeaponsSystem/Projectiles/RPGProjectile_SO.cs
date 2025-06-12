@@ -1,4 +1,5 @@
 using UnityEngine;
+using Photon.Pun; // ← 추가
 
 public class RPGProjectile_SO : MonoBehaviour
 {
@@ -24,12 +25,12 @@ public class RPGProjectile_SO : MonoBehaviour
         if (weaponData == null)
         {
             Debug.LogWarning("❌ weaponData가 null 상태로 RPG 생성됨");
-            return;  // ❌ Destroy 안 하고 로그만 출력
+            return;
         }
 
         rb.gravityScale = weaponData.useGravity ? 1f : 0f;
         float finalPower = Mathf.Max(0.1f, power);
-        rb.velocity = shootDirection.normalized * weaponData.bulletSpeed * finalPower; // ✅ 변경
+        rb.velocity = shootDirection.normalized * weaponData.bulletSpeed * finalPower;
 
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         if (sr != null)
@@ -38,7 +39,6 @@ public class RPGProjectile_SO : MonoBehaviour
             sr.sortingOrder = 5;
         }
     }
-
 
     void FixedUpdate()
     {
@@ -51,83 +51,113 @@ public class RPGProjectile_SO : MonoBehaviour
 
     void OnCollisionEnter2D(Collision2D collision)
     {
-        // 폭발 이펙트
-        if (weaponData.explosionEffectPrefab != null)
+        Vector3 explosionCenter = transform.position;
+
+        // ✅ 수정: 모든 클라이언트에서 데미지 적용 (마스터 체크 제거)
+        if (weaponData.damage > 0f)
         {
-            GameObject fx = Instantiate(weaponData.explosionEffectPrefab, transform.position, Quaternion.identity);
-            float scaleFactor = weaponData.explosionRadius / 50f;
-            fx.transform.localScale = Vector3.one * scaleFactor;
+            // RPG는 10미터 범위 데미지
+            float damageRadius = 10f;
+
+            Debug.Log($"💥 RPG 폭발: 중심 {explosionCenter}, 데미지 범위 {damageRadius}m, 데미지 {weaponData.damage}");
+
+            DamageSystem.ApplyExplosionDamage(
+                explosionCenter,
+                damageRadius,           // 10미터 데미지 범위
+                weaponData.damage       // 28 데미지
+            );
         }
 
-
-
-        // 폭발 반경 내 물리 반응
-        if (weaponData.explosionRadius > 0f)
+        // 폭발 이펙트 (모든 클라이언트에서 실행)
+        if (weaponData.explosionEffectPrefab != null)
         {
-            Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, weaponData.explosionRadius);
+            GameObject fx = Instantiate(weaponData.explosionEffectPrefab, explosionCenter, Quaternion.identity);
+            float scaleFactor = weaponData.explosionRadius / 50f;
+            fx.transform.localScale = Vector3.one * scaleFactor;
+            Destroy(fx, 3f);
+        }
+
+        // 강력한 물리적 폭발력 (모든 클라이언트에서 실행)
+        if (weaponData.explosionRadius > 0f && weaponData.explosionForce > 0f)
+        {
+            Collider2D[] hits = Physics2D.OverlapCircleAll(explosionCenter, weaponData.explosionRadius);
             foreach (var hit in hits)
             {
                 Rigidbody2D targetRb = hit.attachedRigidbody;
                 if (targetRb != null)
                 {
-                    Vector2 dir = targetRb.position - (Vector2)transform.position;
-                    targetRb.AddForce(dir.normalized * weaponData.explosionForce, ForceMode2D.Impulse);
+                    Vector2 dir = targetRb.position - (Vector2)explosionCenter;
+                    // RPG는 폭발력이 더 강함
+                    targetRb.AddForce(dir.normalized * weaponData.explosionForce * 1.5f, ForceMode2D.Impulse);
                 }
             }
         }
 
-        // 지형 파괴
+        // 지형 파괴 (모든 클라이언트에서 실행)
         if (collision.collider.CompareTag("Ground"))
         {
-            SpriteRenderer sr = collision.collider.GetComponent<SpriteRenderer>();
-            PolygonCollider2D pc = collision.collider.GetComponent<PolygonCollider2D>();
+            DestroyTerrain(collision, explosionCenter);
+        }
 
-            Texture2D tex = new Texture2D(
-                sr.sprite.texture.width,
-                sr.sprite.texture.height,
-                TextureFormat.RGBA32,
-                false
-            );
-            tex.SetPixels(sr.sprite.texture.GetPixels());
+        // RPG 제거
+        Destroy(gameObject);
+    }
 
-            Vector2 worldPos = collision.GetContact(0).point;
-            Vector2 localPos = sr.transform.InverseTransformPoint(worldPos);
+    // 지형 파괴 로직 (기존과 동일)
+    void DestroyTerrain(Collision2D collision, Vector3 explosionCenter)
+    {
+        SpriteRenderer sr = collision.collider.GetComponent<SpriteRenderer>();
+        PolygonCollider2D pc = collision.collider.GetComponent<PolygonCollider2D>();
 
-            int pixelX = Mathf.RoundToInt((localPos.x + sr.sprite.bounds.extents.x) * tex.width / sr.sprite.bounds.size.x);
-            int pixelY = Mathf.RoundToInt((localPos.y + sr.sprite.bounds.extents.y) * tex.height / sr.sprite.bounds.size.y);
+        if (sr == null || sr.sprite == null) return;
 
-            int radius = Mathf.RoundToInt(weaponData.explosionRadius); // ✅ 반경은 무기 설정에서
+        Texture2D tex = new Texture2D(
+            sr.sprite.texture.width,
+            sr.sprite.texture.height,
+            TextureFormat.RGBA32,
+            false
+        );
+        tex.SetPixels(sr.sprite.texture.GetPixels());
 
-            for (int x = -radius; x <= radius; x++)
+        Vector2 worldPos = collision.GetContact(0).point;
+        Vector2 localPos = sr.transform.InverseTransformPoint(worldPos);
+
+        int pixelX = Mathf.RoundToInt((localPos.x + sr.sprite.bounds.extents.x) * tex.width / sr.sprite.bounds.size.x);
+        int pixelY = Mathf.RoundToInt((localPos.y + sr.sprite.bounds.extents.y) * tex.height / sr.sprite.bounds.size.y);
+
+        // RPG 지형 파괴 반경 (weaponData.explosionRadius 사용 - 50픽셀)
+        int radius = Mathf.RoundToInt(weaponData.explosionRadius);
+
+        for (int x = -radius; x <= radius; x++)
+        {
+            for (int y = -radius; y <= radius; y++)
             {
-                for (int y = -radius; y <= radius; y++)
+                if (x * x + y * y <= radius * radius)
                 {
-                    if (x * x + y * y <= radius * radius)
-                    {
-                        int px = pixelX + x;
-                        int py = pixelY + y;
+                    int px = pixelX + x;
+                    int py = pixelY + y;
 
-                        if (px >= 0 && px < tex.width && py >= 0 && py < tex.height)
-                        {
-                            tex.SetPixel(px, py, new Color(0, 0, 0, 0)); // 알파 0 = 투명
-                        }
+                    if (px >= 0 && px < tex.width && py >= 0 && py < tex.height)
+                    {
+                        tex.SetPixel(px, py, new Color(0, 0, 0, 0)); // 투명하게
                     }
                 }
             }
+        }
 
-            tex.Apply();
+        tex.Apply();
 
-            sr.sprite = Sprite.Create(
-                tex,
-                sr.sprite.rect,
-                sr.sprite.pivot / sr.sprite.rect.size,
-                sr.sprite.pixelsPerUnit
-            );
+        sr.sprite = Sprite.Create(
+            tex,
+            sr.sprite.rect,
+            sr.sprite.pivot / sr.sprite.rect.size,
+            sr.sprite.pixelsPerUnit
+        );
 
+        if (pc != null)
+        {
             Destroy(pc);
             sr.gameObject.AddComponent<PolygonCollider2D>();
         }
-
-        Destroy(gameObject); // RPG 제거
     }
 }

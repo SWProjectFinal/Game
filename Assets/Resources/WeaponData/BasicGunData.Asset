@@ -15,7 +15,7 @@ MonoBehaviour:
   weaponName: "\uAE30\uBCF8 \uBB34\uAE30"
   icon: {fileID: 21300000, guid: d1c76892f4945ee4b800643851d22a2f, type: 3}
   projectilePrefab: {fileID: 6189577484162626991, guid: 514ab6f1dc57cf94cbeedb2ef21f2d0e, type: 3}
-  damage: 30
+  damage: 10
   range: 10
   cooldown: 1
   bulletSpeed: 1

@@ -15,7 +15,7 @@ MonoBehaviour:
   weaponName: RPG
   icon: {fileID: 21300000, guid: 4f1cda63449f5b2458c309d89ddc1735, type: 3}
   projectilePrefab: {fileID: 6449462980904097254, guid: 34fb3ee6ce7847e41b673d89233f762a, type: 3}
-  damage: 80
+  damage: 25
   range: 10
   cooldown: 1
   bulletSpeed: 1.5
