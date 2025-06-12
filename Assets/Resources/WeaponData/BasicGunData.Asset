@@ -17,7 +17,7 @@ MonoBehaviour:
   projectilePrefab: {fileID: 6189577484162626991, guid: 514ab6f1dc57cf94cbeedb2ef21f2d0e, type: 3}
   damage: 10
   range: 10
-  cooldown: 1
+  cooldown: 6
   bulletSpeed: 1
   explosionEffectPrefab: {fileID: 7135395293779586346, guid: 1ccdead3ec2f5254da0119319f9f374a, type: 3}
   fireSound: {fileID: 0}

@@ -123,30 +123,37 @@ public class CatController : MonoBehaviour, IPunObservable // ← IPunObservable
 
     void Update()
     {
-        // ===== 사망 체크 먼저 =====
+        // 사망 체크 먼저
         if (playerHealth != null && !playerHealth.IsAlive)
         {
             isDead = true;
-            return; // 사망 시 모든 입력 무시
+            return;
         }
 
-        // ===== 턴제 조건 추가 =====
+        // 턴제 조건 추가
         if (isDead || !canMove)
         {
-            // ← 낙사 체크는 움직임과 관계없이 계속 확인
             CheckFallStatus();
             return;
         }
 
-        // ===== 소유권 체크 추가 =====
+        // 소유권 체크 추가
         PhotonView pv = GetComponent<PhotonView>();
         if (pv != null && !pv.IsMine)
         {
-            // 다른 플레이어 캐릭터라도 낙사는 체크
             CheckFallStatus();
+
+            // ✅ 다른 플레이어 캐릭터의 애니메이션 처리
+            if (animator != null)
+            {
+                // OnPhotonSerializeView에서 받은 데이터로 애니메이션 처리
+                // (이미 OnPhotonSerializeView에서 처리되므로 추가 작업 불필요)
+            }
+
             return; // 내 캐릭터가 아니면 입력 무시!
         }
 
+        // 내 캐릭터의 입력 처리
         moveInput = (int)Input.GetAxisRaw("Horizontal");
         lookInput = Input.GetAxisRaw("Vertical");
 
@@ -154,7 +161,7 @@ public class CatController : MonoBehaviour, IPunObservable // ← IPunObservable
         if (moveInput != 0)
             spriteRenderer.flipX = moveInput < 0;
 
-        // 애니메이션
+        // ✅ 애니메이션 (내 캐릭터만 직접 처리)
         if (animator != null)
             animator.SetBool("isWalking", Mathf.Abs(rb.velocity.x) > 0.01f);
 
@@ -169,7 +176,7 @@ public class CatController : MonoBehaviour, IPunObservable // ← IPunObservable
             headPivot.localEulerAngles = new Vector3(0, 0, z);
         }
 
-        // ← 낙사 체크 (매 프레임마다)
+        // 낙사 체크
         CheckFallStatus();
     }
 
@@ -388,7 +395,6 @@ public class CatController : MonoBehaviour, IPunObservable // ← IPunObservable
         if (stream.IsWriting)
         {
             // 내가 조종하는 캐릭터 데이터 전송
-            // ✅ null 체크 추가
             if (spriteRenderer != null)
                 stream.SendNext(spriteRenderer.flipX);
             else
@@ -405,25 +411,51 @@ public class CatController : MonoBehaviour, IPunObservable // ← IPunObservable
             {
                 stream.SendNext(0f);
             }
+
+            // ✅ 새로 추가: 애니메이션 상태 전송
+            if (rb != null)
+            {
+                bool isMoving = Mathf.Abs(rb.velocity.x) > 0.01f;
+                stream.SendNext(isMoving);
+            }
+            else
+            {
+                stream.SendNext(false);
+            }
+
+            // ✅ 새로 추가: 움직임 입력 전송 (선택사항)
+            stream.SendNext(moveInput);
         }
         else
         {
             // 다른 플레이어 캐릭터 데이터 수신
             bool flipX = (bool)stream.ReceiveNext();
             float headRotZ = (float)stream.ReceiveNext();
+            bool isMoving = (bool)stream.ReceiveNext();
+            int receivedMoveInput = (int)stream.ReceiveNext();
 
-            // ✅ null 체크 추가
+            // 스프라이트 뒤집기 적용
             if (spriteRenderer != null)
             {
                 spriteRenderer.flipX = flipX;
             }
 
+            // 고개 회전 적용
             if (headPivot != null)
             {
-                // 수신한 각도 적용
                 headPivot.localEulerAngles = new Vector3(0, 0, headRotZ);
-                // Debug.Log($"[{gameObject.name}] 고개 회전 동기화: {headRotZ:F1}도");
             }
+
+            // ✅ 새로 추가: 애니메이션 상태 적용
+            if (animator != null)
+            {
+                animator.SetBool("isWalking", isMoving);
+            }
+
+            // ✅ 새로 추가: 움직임 입력도 동기화 (더 정확한 애니메이션)
+            moveInput = receivedMoveInput;
+
+            Debug.Log($"[{gameObject.name}] 애니메이션 동기화: 움직임 {isMoving}, 입력 {receivedMoveInput}");
         }
     }
 

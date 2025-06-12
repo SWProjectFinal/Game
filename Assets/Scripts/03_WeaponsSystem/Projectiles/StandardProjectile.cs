@@ -1,5 +1,5 @@
 using UnityEngine;
-using Photon.Pun; // ← 추가
+using Photon.Pun;
 
 public class StandardProjectile : MonoBehaviour
 {
@@ -44,11 +44,10 @@ public class StandardProjectile : MonoBehaviour
     {
         Vector3 explosionCenter = transform.position;
 
-        // ✅ 수정: 모든 클라이언트에서 데미지 적용 (마스터 체크 제거)
+        // ✅ 데미지 적용 (모든 클라이언트에서 실행)
         if (weaponData.damage > 0f)
         {
-            // 기본무기는 5미터 범위 데미지
-            float damageRadius = 5f;
+            float damageRadius = 5f; // 기본무기 5미터 범위
 
             Debug.Log($"💥 기본무기 폭발: 중심 {explosionCenter}, 데미지 범위 {damageRadius}m, 데미지 {weaponData.damage}");
 
@@ -59,7 +58,7 @@ public class StandardProjectile : MonoBehaviour
             );
         }
 
-        // 폭발 이펙트 (모든 클라이언트에서 실행)
+        // ✅ 폭발 이펙트 (모든 클라이언트에서 실행)
         if (weaponData.explosionEffectPrefab != null)
         {
             GameObject fx = Instantiate(weaponData.explosionEffectPrefab, explosionCenter, Quaternion.identity);
@@ -68,7 +67,7 @@ public class StandardProjectile : MonoBehaviour
             Destroy(fx, 2f);
         }
 
-        // 물리적 폭발력 (모든 클라이언트에서 실행)
+        // ✅ 물리적 폭발력 (모든 클라이언트에서 실행)
         if (weaponData.explosionRadius > 0f && weaponData.explosionForce > 0f)
         {
             Collider2D[] hits = Physics2D.OverlapCircleAll(explosionCenter, weaponData.explosionRadius);
@@ -83,17 +82,31 @@ public class StandardProjectile : MonoBehaviour
             }
         }
 
-        // 지형 파괴 (모든 클라이언트에서 실행)
+        // ✅ 지형 파괴 RPC 동기화
         if (collision.collider.CompareTag("Ground"))
         {
-            DestroyTerrain(collision, explosionCenter);
+            // 모든 클라이언트에 지형파괴 RPC 전송
+            Vector2 worldPos = collision.GetContact(0).point;
+            int radius = Mathf.RoundToInt(weaponData.explosionRadius > 0 ? weaponData.explosionRadius : 20f);
+
+            // WeaponManager를 통해 RPC 전송
+            if (WeaponManager.Instance != null && WeaponManager.Instance.photonView != null)
+            {
+                WeaponManager.Instance.photonView.RPC("RPC_DestroyTerrain", RpcTarget.All,
+                    worldPos.x, worldPos.y, explosionCenter.x, explosionCenter.y, explosionCenter.z, radius);
+            }
+            else
+            {
+                // 백업: 로컬에서만 실행
+                DestroyTerrain(collision, explosionCenter);
+            }
         }
 
-        // 총알 제거
+        // ✅ 총알 제거
         Destroy(gameObject);
     }
 
-    // 지형 파괴 로직 (기존과 동일)
+    // 백업용 로컬 지형 파괴 함수
     void DestroyTerrain(Collision2D collision, Vector3 explosionCenter)
     {
         SpriteRenderer sr = collision.collider.GetComponent<SpriteRenderer>();
@@ -117,7 +130,7 @@ public class StandardProjectile : MonoBehaviour
         int pixelX = Mathf.RoundToInt((localPos.x + sr.sprite.bounds.extents.x) * tex.width / sr.sprite.bounds.size.x);
         int pixelY = Mathf.RoundToInt((localPos.y + sr.sprite.bounds.extents.y) * tex.height / sr.sprite.bounds.size.y);
 
-        // 지형 파괴 반경 (weaponData.explosionRadius 사용)
+        // 지형 파괴 반경
         int radius = Mathf.RoundToInt(weaponData.explosionRadius > 0 ? weaponData.explosionRadius : 20f);
 
         // 원형으로 픽셀 제거

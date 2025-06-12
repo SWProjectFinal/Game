@@ -378,17 +378,59 @@ public class TurnManager : MonoBehaviourPun, IPunObservable
         }
     }
 
+    // ✅ TurnManager.cs의 ForceEndTurn() 함수 수정
+
     public void ForceEndTurn()
     {
         if (!isGameActive) return;
 
-        Debug.Log("아이템 사용으로 인한 강제 턴 종료!");
+        Debug.Log("🔫 아이템 사용으로 인한 강제 턴 종료!");
 
         // 현재 시간이 5초보다 크면 5초로 변경
         if (currentTurnTime > itemUseTurnDuration)
         {
             currentTurnTime = itemUseTurnDuration;
             isItemUsed = true;
+
+            // ✅ 새로 추가: RPC로 모든 클라이언트에 동기화
+            if (PhotonNetwork.IsMasterClient)
+            {
+                photonView.RPC("SyncForceEndTurn", RpcTarget.Others, itemUseTurnDuration);
+            }
+            else
+            {
+                // 일반 클라이언트가 호출한 경우, 마스터에게 요청
+                photonView.RPC("RequestForceEndTurn", RpcTarget.MasterClient, itemUseTurnDuration);
+            }
+        }
+    }
+
+    // ✅ 새로 추가: 강제 턴 종료 동기화 RPC
+    [PunRPC]
+    void SyncForceEndTurn(float newTime)
+    {
+        currentTurnTime = newTime;
+        isItemUsed = true;
+
+        Debug.Log($"📡 [Client] 턴 시간 동기화: {newTime}초로 조정됨");
+    }
+
+    // ✅ 새로 추가: 강제 턴 종료 요청 RPC (클라이언트 → 마스터)
+    [PunRPC]
+    void RequestForceEndTurn(float newTime)
+    {
+        if (PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log($"📡 [Master] 클라이언트로부터 턴 종료 요청 받음: {newTime}초");
+
+            if (currentTurnTime > newTime)
+            {
+                currentTurnTime = newTime;
+                isItemUsed = true;
+
+                // 다른 모든 클라이언트에도 동기화
+                photonView.RPC("SyncForceEndTurn", RpcTarget.Others, newTime);
+            }
         }
     }
 
