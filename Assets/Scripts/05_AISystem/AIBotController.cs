@@ -7,12 +7,19 @@ public class AIBotController : MonoBehaviour
     private AIWeaponSelector weaponSelector;
     public Transform firePoint;
 
+    private Rigidbody2D rb;
+
     // 봇 상태 추적
     private bool isInitialized = false;
+
+    [Header("맵 경계 제한")]
+    public float mapLeftBound = -8f;
+    public float mapRightBound = 8f;
 
     void Awake()
     {
         // 컴포넌트들이 추가될 때까지 대기
+        rb = GetComponent<Rigidbody2D>();
         StartCoroutine(InitializeComponents());
     }
 
@@ -59,6 +66,8 @@ public class AIBotController : MonoBehaviour
     {
         // 1. 약간의 대기 시간 (자연스러움을 위해)
         yield return new WaitForSeconds(Random.Range(0.5f, 1.5f));
+
+        yield return MoveBeforeFire();
 
         // 2. 무기 선택
         if (!SelectWeapon())
@@ -147,6 +156,8 @@ public class AIBotController : MonoBehaviour
             // AI 방향 설정
             bool targetIsRight = targetPos.x > myPos.x;
             aimSystem.facingRight = targetIsRight;
+
+            int direction = Random.value < 0.5f ? -1 : 1;
 
             // 캐릭터 스프라이트 방향 설정
             Vector3 scale = transform.localScale;
@@ -310,6 +321,44 @@ public class AIBotController : MonoBehaviour
             Debug.LogError($"AI {name}: 턴 종료 중 오류 발생: {e.Message}");
         }
     }
+
+    IEnumerator MoveBeforeFire()
+    {
+        Debug.Log($"🤖 AI {name}: 발사 전 이동 시작");
+
+        Vector3 originalPos = transform.position;
+
+        int direction = Random.value < 0.5f ? -1 : 1;
+
+        float moveAmount = Random.Range(2f, 4f);
+        float targetX = originalPos.x + (moveAmount * direction);
+
+        if (targetX < mapLeftBound || targetX > mapRightBound)
+        {
+            Debug.Log("📛 이동 범위 초과 - 이동 취소");
+            yield break;
+        }
+
+        Vector3 scale = transform.localScale;
+        scale.x = direction > 0 ? Mathf.Abs(scale.x) : -Mathf.Abs(scale.x);
+        transform.localScale = scale;
+
+        float moveSpeed = 1f;
+        float duration = Mathf.Abs(moveAmount) / moveSpeed;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            // ✅ 물리말고 transform으로 자연스럽게 이동
+            transform.position += Vector3.right * direction * moveSpeed * Time.deltaTime;
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        Debug.Log($"✅ 이동 완료 → {transform.position}");
+    }
+
 
     // Start는 제거 (Awake에서 처리)
 }
