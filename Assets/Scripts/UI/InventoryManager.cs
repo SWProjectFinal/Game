@@ -48,6 +48,8 @@ public class InventoryManager : MonoBehaviour
                 {
                     slotIcons[i].sprite = icon;
                     slotIcons[i].enabled = true;
+
+                    slotIcons[i].preserveAspect = true;
                 }
                 else
                 {
