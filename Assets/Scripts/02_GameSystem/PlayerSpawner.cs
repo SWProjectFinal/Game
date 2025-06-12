@@ -29,6 +29,7 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
   {
     public string name;
     public int colorIndex;
+    public Vector3 spawnPosition; // ✅ 스폰 위치 추가
   }
 
   private List<BotInfo> lobbyBots = new List<BotInfo>();
@@ -87,12 +88,22 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     {
       SpawnAllPlayers();
 
-      // 마스터 클라이언트만 봇 스폰
+      // ✅ 마스터 클라이언트만 봇 위치 계산 및 전송
       if (PhotonNetwork.IsMasterClient)
       {
         if (lobbyBots.Count > 0)
         {
-          SpawnAllBots(); // 봇이 있으면 스폰 후 게임 시작
+          // ✅ 봇 위치를 다시 계산 (플레이어 스폰 후)
+          for (int i = 0; i < lobbyBots.Count; i++)
+          {
+            lobbyBots[i].spawnPosition = GetSpawnPosition(PhotonNetwork.PlayerList.Length + i);
+          }
+
+          // 모든 클라이언트에 봇 정보 전송 (위치 포함)
+          photonView.RPC("RPC_SyncBotsData", RpcTarget.Others, SerializeBotData());
+
+          // 마스터에서 봇 스폰
+          SpawnAllBots();
         }
         else
         {
@@ -110,6 +121,74 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
       // 모든 플레이어 색깔 적용
       StartCoroutine(ApplyColorsToAllPlayers());
     }
+  }
+
+  // ✅ 봇 데이터 직렬화 (RPC 전송용)
+  string SerializeBotData()
+  {
+    List<string> serializedData = new List<string>();
+
+    foreach (var bot in lobbyBots)
+    {
+      // "BotName|ColorIndex|X|Y|Z" 형식으로 저장 (위치 포함)
+      Vector3 pos = bot.spawnPosition;
+      serializedData.Add($"{bot.name}|{bot.colorIndex}|{pos.x}|{pos.y}|{pos.z}");
+    }
+
+    // 배열을 하나의 문자열로 합치기 (구분자: ;)
+    return string.Join(";", serializedData);
+  }
+
+  // ✅ 봇 데이터 역직렬화 (RPC 수신용)
+  List<BotInfo> DeserializeBotData(string serializedData)
+  {
+    List<BotInfo> bots = new List<BotInfo>();
+
+    if (string.IsNullOrEmpty(serializedData))
+    {
+      return bots;
+    }
+
+    // ";" 구분자로 분리
+    string[] botEntries = serializedData.Split(';');
+
+    foreach (string entry in botEntries)
+    {
+      if (string.IsNullOrEmpty(entry)) continue;
+
+      string[] parts = entry.Split('|');
+      if (parts.Length == 5) // name|colorIndex|x|y|z
+      {
+        var botInfo = new BotInfo
+        {
+          name = parts[0],
+          colorIndex = int.Parse(parts[1]),
+          spawnPosition = new Vector3(
+                float.Parse(parts[2]),
+                float.Parse(parts[3]),
+                float.Parse(parts[4])
+            )
+        };
+        bots.Add(botInfo);
+      }
+    }
+
+    return bots;
+  }
+
+  // ✅ RPC: 모든 클라이언트에서 봇 데이터 수신 및 스폰
+  [PunRPC]
+  void RPC_SyncBotsData(string serializedBotData)
+  {
+    Debug.Log($"🤖 [Client] 봇 데이터 수신: {serializedBotData}");
+
+    // 봇 데이터 역직렬화
+    lobbyBots = DeserializeBotData(serializedBotData);
+
+    // 모든 클라이언트에서 봇 스폰
+    SpawnAllBots();
+
+    Debug.Log($"🤖 [Client] 봇 스폰 완료: {lobbyBots.Count}개");
   }
 
   void SpawnAllPlayers()
@@ -266,39 +345,55 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     int botCount = PlayerPrefs.GetInt("BotCount", 0);
     Debug.Log($"🤖 로비에서 저장된 봇 정보 로드: {botCount}개");
 
+    lobbyBots.Clear(); // 기존 데이터 클리어
+
     for (int i = 0; i < botCount; i++)
     {
       string botName = PlayerPrefs.GetString($"BotName{i}", $"Bot{i + 1}");
       int botColorIndex = PlayerPrefs.GetInt($"BotColor{i}", i);
 
-      // 봇 정보를 로컬 리스트에 저장 (스폰은 나중에)
+      // ✅ 마스터 클라이언트에서만 위치 계산 (일관성 보장)
+      Vector3 botSpawnPos = Vector3.zero;
+      if (PhotonNetwork.IsMasterClient)
+      {
+        botSpawnPos = GetSpawnPosition(PhotonNetwork.PlayerList.Length + i);
+      }
+
+      // 봇 정보를 로컬 리스트에 저장
       var botInfo = new BotInfo
       {
         name = botName,
-        colorIndex = botColorIndex
+        colorIndex = botColorIndex,
+        spawnPosition = botSpawnPos // ✅ 위치 저장
       };
 
       lobbyBots.Add(botInfo);
-      Debug.Log($"🤖 봇 정보 로드: {botName} (색상: {botColorIndex})");
+      Debug.Log($"🤖 봇 정보 로드: {botName} (색상: {botColorIndex}, 위치: {botSpawnPos})");
     }
   }
 
-  // 로비에서 설정한 모든 봇 스폰
+  // ✅ 수정: 모든 클라이언트에서 봇 스폰 (로컬 오브젝트로)
   void SpawnAllBots()
   {
-    Debug.Log($"🤖 봇 스폰 시작: {lobbyBots.Count}개");
+    Debug.Log($"🤖 모든 클라이언트에서 봇 스폰 시작: {lobbyBots.Count}개");
 
     for (int i = 0; i < lobbyBots.Count; i++)
     {
       var botInfo = lobbyBots[i];
-      Vector3 spawnPos = GetSpawnPosition(PhotonNetwork.PlayerList.Length + i);
+
+      // ✅ 미리 계산된 위치 사용 (랜덤 계산 안 함)
+      Vector3 spawnPos = botInfo.spawnPosition;
+
       SpawnBot(botInfo, spawnPos);
     }
 
     Debug.Log($"🤖 모든 봇 스폰 완료: {lobbyBots.Count}개");
 
-    // TurnManager에 봇 정보 전달
-    NotifyBotsToTurnManager();
+    // ✅ 마스터 클라이언트만 TurnManager에 봇 정보 전달
+    if (PhotonNetwork.IsMasterClient)
+    {
+      NotifyBotsToTurnManager();
+    }
   }
 
   void NotifyBotsToTurnManager()
@@ -332,7 +427,7 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
       return;
     }
 
-    // 봇은 로컬에서만 생성 (네트워크 오브젝트 아님)
+    // ✅ 모든 클라이언트에서 봇을 로컬 오브젝트로 생성
     GameObject botObj = Instantiate(catPrefab, position, Quaternion.identity);
 
     // 봇 이름 설정
@@ -491,16 +586,24 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
   {
     Debug.Log($"새로운 플레이어가 방에 들어왔습니다: {newPlayer.NickName}");
 
+    // ✅ 마스터 클라이언트라면 새로 들어온 플레이어에게 봇 정보 전송
+    if (PhotonNetwork.IsMasterClient && lobbyBots.Count > 0)
+    {
+      // 현재 스폰된 봇들의 실제 위치를 업데이트
+      for (int i = 0; i < spawnedBots.Count && i < lobbyBots.Count; i++)
+      {
+        if (spawnedBots[i] != null)
+        {
+          lobbyBots[i].spawnPosition = spawnedBots[i].transform.position;
+        }
+      }
+
+      photonView.RPC("RPC_SyncBotsData", newPlayer, SerializeBotData());
+      Debug.Log($"🤖 새 플레이어 {newPlayer.NickName}에게 봇 정보 전송");
+    }
+
     // 새로 들어온 플레이어의 캐릭터에도 색깔 적용
     StartCoroutine(ApplyColorsToAllPlayers());
-  }
-
-  // 플레이어가 방을 나갔을 때 (IConnectionCallbacks)
-  public void OnPlayerLeftRoom(Player otherPlayer)
-  {
-    Debug.Log($"플레이어가 방을 떠났습니다: {otherPlayer.NickName}");
-
-    // 해당 플레이어의 오브젝트 정리는 자동으로 처리됨 (PhotonNetwork)
   }
 
   // IConnectionCallbacks 인터페이스의 다른 메서드들 (비워둠)
@@ -542,24 +645,28 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
       }
     }
 
-
-
     // 맵 경계 시각화
     Gizmos.color = Color.yellow;
     Gizmos.DrawWireCube(Vector3.zero, new Vector3(mapBounds.x * 2, 1, mapBounds.y * 2));
   }
 
-  // PlayerSpawner.cs
-
   public GameObject GetPlayerObject(string nickname)
   {
+    // 실제 플레이어 찾기
     foreach (GameObject playerObj in spawnedPlayers)
     {
       PhotonView pv = playerObj.GetComponent<PhotonView>();
       if (pv != null && pv.Owner != null && pv.Owner.NickName == nickname)
         return playerObj;
     }
+
+    // ✅ 봇 찾기 추가
+    foreach (GameObject botObj in spawnedBots)
+    {
+      if (botObj != null && botObj.name == nickname)
+        return botObj;
+    }
+
     return null;
   }
-
 }
