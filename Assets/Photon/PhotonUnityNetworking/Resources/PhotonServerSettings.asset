@@ -63,6 +63,9 @@ MonoBehaviour:
   - SyncForceEndTurn
   - RPC_DestroyTerrain
   - RPC_SyncBotsData
+  - RPC_SyncBotAiming
+  - RPC_SyncBotMovement
+  - RPC_SyncBotPosition
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1

@@ -88,21 +88,18 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     {
       SpawnAllPlayers();
 
-      // ✅ 마스터 클라이언트만 봇 위치 계산 및 전송
+      // ✅ 마스터 클라이언트만 봇 처리
       if (PhotonNetwork.IsMasterClient)
       {
         if (lobbyBots.Count > 0)
         {
-          // ✅ 봇 위치를 다시 계산 (플레이어 스폰 후)
-          for (int i = 0; i < lobbyBots.Count; i++)
-          {
-            lobbyBots[i].spawnPosition = GetSpawnPosition(PhotonNetwork.PlayerList.Length + i);
-          }
+          // ✅ 마스터에서 봇 위치 계산
+          CalculateBotPositions();
 
-          // 모든 클라이언트에 봇 정보 전송 (위치 포함)
+          // ✅ 계산된 위치를 다른 클라이언트에 전송
           photonView.RPC("RPC_SyncBotsData", RpcTarget.Others, SerializeBotData());
 
-          // 마스터에서 봇 스폰
+          // ✅ 마스터에서도 봇 스폰
           SpawnAllBots();
         }
         else
@@ -122,6 +119,21 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
       StartCoroutine(ApplyColorsToAllPlayers());
     }
   }
+
+  // ✅ 3. 새로운 함수: 봇 위치 계산
+  void CalculateBotPositions()
+  {
+    Debug.Log($"🤖 [Master] 봇 위치 계산 시작: {lobbyBots.Count}개");
+
+    for (int i = 0; i < lobbyBots.Count; i++)
+    {
+      Vector3 calculatedPosition = GetSpawnPosition(PhotonNetwork.PlayerList.Length + i);
+      lobbyBots[i].spawnPosition = calculatedPosition;
+
+      Debug.Log($"🤖 [Master] {lobbyBots[i].name} 위치 계산: {calculatedPosition}");
+    }
+  }
+
 
   // ✅ 봇 데이터 직렬화 (RPC 전송용)
   string SerializeBotData()
@@ -184,6 +196,12 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
 
     // 봇 데이터 역직렬화
     lobbyBots = DeserializeBotData(serializedBotData);
+
+    // ✅ 위치 정보 확인 로그
+    for (int i = 0; i < lobbyBots.Count; i++)
+    {
+      Debug.Log($"🤖 [Client] {lobbyBots[i].name} 수신된 위치: {lobbyBots[i].spawnPosition}");
+    }
 
     // 모든 클라이언트에서 봇 스폰
     SpawnAllBots();
@@ -352,23 +370,16 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
       string botName = PlayerPrefs.GetString($"BotName{i}", $"Bot{i + 1}");
       int botColorIndex = PlayerPrefs.GetInt($"BotColor{i}", i);
 
-      // ✅ 마스터 클라이언트에서만 위치 계산 (일관성 보장)
-      Vector3 botSpawnPos = Vector3.zero;
-      if (PhotonNetwork.IsMasterClient)
-      {
-        botSpawnPos = GetSpawnPosition(PhotonNetwork.PlayerList.Length + i);
-      }
-
-      // 봇 정보를 로컬 리스트에 저장
+      // ✅ 위치는 나중에 마스터에서 계산 (여기서는 Vector3.zero)
       var botInfo = new BotInfo
       {
         name = botName,
         colorIndex = botColorIndex,
-        spawnPosition = botSpawnPos // ✅ 위치 저장
+        spawnPosition = Vector3.zero // ✅ 임시값
       };
 
       lobbyBots.Add(botInfo);
-      Debug.Log($"🤖 봇 정보 로드: {botName} (색상: {botColorIndex}, 위치: {botSpawnPos})");
+      Debug.Log($"🤖 봇 정보 로드: {botName} (색상: {botColorIndex})");
     }
   }
 
@@ -381,8 +392,10 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     {
       var botInfo = lobbyBots[i];
 
-      // ✅ 미리 계산된 위치 사용 (랜덤 계산 안 함)
+      // ✅ 미리 계산된 위치 사용 (절대 랜덤 계산 안 함)
       Vector3 spawnPos = botInfo.spawnPosition;
+
+      Debug.Log($"🤖 {botInfo.name} 스폰 위치: {spawnPos}");
 
       SpawnBot(botInfo, spawnPos);
     }
@@ -427,7 +440,9 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
       return;
     }
 
-    // ✅ 모든 클라이언트에서 봇을 로컬 오브젝트로 생성
+    Debug.Log($"🤖 [{(PhotonNetwork.IsMasterClient ? "Master" : "Client")}] {botInfo.name} 스폰 시작: {position}");
+
+    // 모든 클라이언트에서 봇을 로컬 오브젝트로 생성
     GameObject botObj = Instantiate(catPrefab, position, Quaternion.identity);
 
     // 봇 이름 설정
@@ -440,17 +455,27 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     // 네트워크 관련 컴포넌트들 모두 제거 (봇은 로컬 오브젝트)
     RemoveNetworkComponents(botObj);
 
-    // 봇 설정
+    // ✅ 기존 CatController 비활성화
     var catController = botObj.GetComponent<CatController>();
     if (catController != null)
     {
-      // 봇은 입력을 받지 않도록 설정 (나중에 AI 추가)
       catController.enabled = false;
+      Debug.Log($"🤖 {botInfo.name}: CatController 비활성화");
+    }
+
+    // ✅ BotAIController 추가
+    var botAI = botObj.AddComponent<BotAIController>();
+    if (botAI != null)
+    {
+      // ✅ 고정 난이도 설정 (코드에서 조정 가능)
+      botAI.difficulty = BotAIController.BotDifficulty.Normal;
+
+      Debug.Log($"🤖 {botInfo.name}: BotAIController 추가 - 난이도: {botAI.difficulty}");
     }
 
     spawnedBots.Add(botObj);
 
-    Debug.Log($"🤖 봇 스폰 완료: {botInfo.name} (색상: {botColor}) at {position}");
+    Debug.Log($"🤖 [{(PhotonNetwork.IsMasterClient ? "Master" : "Client")}] {botInfo.name} 스폰 완료: {position} (색상: {botColor})");
   }
 
   void RemoveNetworkComponents(GameObject botObj)
@@ -589,12 +614,13 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     // ✅ 마스터 클라이언트라면 새로 들어온 플레이어에게 봇 정보 전송
     if (PhotonNetwork.IsMasterClient && lobbyBots.Count > 0)
     {
-      // 현재 스폰된 봇들의 실제 위치를 업데이트
+      // ✅ 이미 스폰된 봇들의 실제 위치로 업데이트
       for (int i = 0; i < spawnedBots.Count && i < lobbyBots.Count; i++)
       {
         if (spawnedBots[i] != null)
         {
           lobbyBots[i].spawnPosition = spawnedBots[i].transform.position;
+          Debug.Log($"🤖 [Master] {lobbyBots[i].name} 실제 위치 업데이트: {lobbyBots[i].spawnPosition}");
         }
       }
 
@@ -668,5 +694,71 @@ public class PlayerSpawner : MonoBehaviourPun, IConnectionCallbacks, IPunObserva
     }
 
     return null;
+  }
+
+  // ✅ 봇 위치 동기화 RPC
+  [PunRPC]
+  void RPC_SyncBotPosition(string botName, float x, float y, float z)
+  {
+    // 해당 이름의 봇 찾기
+    GameObject botObj = spawnedBots.FirstOrDefault(bot => bot != null && bot.name == botName);
+
+    if (botObj != null)
+    {
+      BotAIController botAI = botObj.GetComponent<BotAIController>();
+      if (botAI != null)
+      {
+        botAI.UpdateSyncPosition(new Vector3(x, y, z));
+        Debug.Log($"🔄 [Client] {botName} 위치 동기화: ({x:F2}, {y:F2}, {z:F2})");
+      }
+    }
+    else
+    {
+      Debug.LogWarning($"❌ [Client] 봇을 찾을 수 없음: {botName}");
+    }
+  }
+
+  // ✅ 봇 이동 동기화 RPC
+  [PunRPC]
+  void RPC_SyncBotMovement(string botName, float moveDirection, bool isMoving)
+  {
+    // 해당 이름의 봇 찾기
+    GameObject botObj = spawnedBots.FirstOrDefault(bot => bot != null && bot.name == botName);
+
+    if (botObj != null)
+    {
+      BotAIController botAI = botObj.GetComponent<BotAIController>();
+      if (botAI != null)
+      {
+        botAI.UpdateSyncMovement(moveDirection, isMoving);
+        Debug.Log($"🚶 [Client] {botName} 이동 동기화: 방향={moveDirection:F1}, 움직임={isMoving}");
+      }
+    }
+    else
+    {
+      Debug.LogWarning($"❌ [Client] 봇을 찾을 수 없음: {botName}");
+    }
+  }
+
+  // ✅ 봇 조준 동기화 RPC
+  [PunRPC]
+  void RPC_SyncBotAiming(string botName, float headAngle)
+  {
+    // 해당 이름의 봇 찾기
+    GameObject botObj = spawnedBots.FirstOrDefault(bot => bot != null && bot.name == botName);
+
+    if (botObj != null)
+    {
+      BotAIController botAI = botObj.GetComponent<BotAIController>();
+      if (botAI != null)
+      {
+        botAI.UpdateSyncAiming(headAngle);
+        Debug.Log($"🎯 [Client] {botName} 조준 동기화: {headAngle:F1}도");
+      }
+    }
+    else
+    {
+      Debug.LogWarning($"❌ [Client] 봇을 찾을 수 없음: {botName}");
+    }
   }
 }
