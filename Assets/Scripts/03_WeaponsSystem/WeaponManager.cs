@@ -83,7 +83,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
                 isInfiniteAmmo = false
             };
 
-            inventory.Add(blackholeWeapon);
+            //inventory.Add(blackholeWeapon);
             allWeapons.Add(blackholeWeapon);
         }
 
@@ -101,7 +101,7 @@ public class WeaponManager : MonoBehaviourPunCallbacks
                 isInfiniteAmmo = false
             };
 
-            inventory.Add(rpgWeapon);
+            //inventory.Add(rpgWeapon);
             allWeapons.Add(rpgWeapon);
         }
 
